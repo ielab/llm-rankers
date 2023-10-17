@@ -202,8 +202,8 @@ class ListwiseLlmRanker(OpenAiListwiseLlmRanker):
                   "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V",
                   "W"]  # "Passage X" and "Passage Y" will be tokenized into 3 tokens, so we dont use for now
 
-    def __init__(self, model_name_or_path, tokenizer_name_or_path, device, cache_dir, window_size, step_size,
-                 scoring='generation', num_repeat=1):
+    def __init__(self, model_name_or_path, tokenizer_name_or_path, device, window_size, step_size,
+                 scoring='generation', num_repeat=1, cache_dir=None):
         self.tokenizer = T5Tokenizer.from_pretrained(tokenizer_name_or_path
                                                      if tokenizer_name_or_path is not None else
                                                      model_name_or_path, cache_dir=cache_dir)

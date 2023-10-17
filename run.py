@@ -202,7 +202,7 @@ if __name__ == '__main__':
     run_parser.add_argument('--query_length', type=int, default=128)
     run_parser.add_argument('--passage_length', type=int, default=128)
     run_parser.add_argument('--device', type=str, default='cuda')
-    run_parser.add_argument('--cache_dir', type=str, default='./cache')
+    run_parser.add_argument('--cache_dir', type=str, default=None)
     run_parser.add_argument('--openai_key', type=str, default=None)
     run_parser.add_argument('--scoring', type=str, default='generation', choices=['generation', 'likelihood'])
     run_parser.add_argument('--shuffle_ranking', type=str, default=None, choices=['inverse', 'random'])

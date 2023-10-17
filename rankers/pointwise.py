@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 class PointwiseLlmRanker(LlmRanker):
 
-    def __init__(self, model_name_or_path, tokenizer_name_or_path, cache_dir, device, method="qlm", batch_size=1):
+    def __init__(self, model_name_or_path, tokenizer_name_or_path, device, method="qlm", batch_size=1, cache_dir=None):
         self.tokenizer = T5Tokenizer.from_pretrained(tokenizer_name_or_path
                                                      if tokenizer_name_or_path is not None else
                                                      model_name_or_path,

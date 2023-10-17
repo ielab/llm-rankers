@@ -25,11 +25,12 @@ class Text2TextGenerationDataset(Dataset):
 class PairwiseLlmRanker(LlmRanker):
     def __init__(self, model_name_or_path,
                  tokenizer_name_or_path,
-                 cache_dir,
                  device,
                  method="allpair",
                  batch_size=2,
-                 k=10):
+                 k=10,
+                 cache_dir=None
+                 ):
         self.device = device
         self.method = method
         self.batch_size = batch_size

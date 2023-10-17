@@ -1,5 +1,5 @@
 # llm-rankers
-Document Ranking with Large Language Models.
+Pointwise, Listwise, Pairwise and [Setwise](https://arxiv.org/pdf/2310.09497.pdf) Document Ranking with Large Language Models.
 > Note: The current code base only supports T5-style open-source LLMs, and OpenAI APIs for several methods. We are in the process of implementing support for more LLMs.
 
 ---
@@ -50,6 +50,28 @@ In this repository, we use DL 2019 as an example. That is, we always re-rank `ru
 --- 
 
 ## Prompting Methods for zero-shot document ranking with LLMs
+
+### Python code example:
+
+```Python
+from rankers.setwise import SetwiseLlmRanker
+from rankers.rankers import SearchResult
+
+docs = [SearchResult(docid=i, text=f'this is passage {i}', score=None) for i in range(100)]
+query = 'Give me passage 34'
+
+ranker = SetwiseLlmRanker(model_name_or_path='google/flan-t5-large',
+                          tokenizer_name_or_path='google/flan-t5-large',
+                          device='cuda',
+                          num_child=10,
+                          scoring='generation',
+                          method='heapsort',
+                          k=10)
+
+print(ranker.rerank(query, docs)[0])
+```
+
+### Command lines examples:
 
 <details>
 <summary><h3>Pointwise</h3></summary>
@@ -335,7 +357,7 @@ ndcg_cut_10             all     0.7675
 If you used our code for your research, please consider to cite our paper:
 
 ```text
-@article{zhuang2021fast,
+@article{zhuang2023setwise,
   title={A Setwise Approach for Effective and Highly Efficient Zero-shot Ranking with Large Language Models},
   author={Zhuang, Shengyao and Zhuang, Honglei and Koopman, Bevan and Zuccon, Guido},
   journal={arXiv preprint arXiv:2310.09497},

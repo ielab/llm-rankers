@@ -17,11 +17,11 @@ class SetwiseLlmRanker(LlmRanker):
                  model_name_or_path,
                  tokenizer_name_or_path,
                  device,
-                 cache_dir,
                  num_child=3,
                  k=10,
                  scoring='generation',
-                 method="heapsort"):
+                 method="heapsort",
+                 cache_dir=None):
 
         self.device = device
         self.num_child = num_child
