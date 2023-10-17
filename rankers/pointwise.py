@@ -29,7 +29,7 @@ class PointwiseLlmRanker(LlmRanker):
         self.total_completion_tokens = 0
         self.total_prompt_tokens = 0
 
-    def rerank(self, query: str, ranking: List[SearchResult], k=10) -> List[SearchResult]:
+    def rerank(self, query: str, ranking: List[SearchResult]) -> List[SearchResult]:
         self.total_compare = 0
         self.total_completion_tokens = 0
         self.total_prompt_tokens = 0
@@ -130,7 +130,7 @@ class PointwiseLlmRanker(LlmRanker):
 
 
 class MonoT5LlmRanker(PointwiseLlmRanker):
-    def rerank(self, query: str, ranking: List[SearchResult], k=10) -> List[SearchResult]:
+    def rerank(self, query: str, ranking: List[SearchResult]) -> List[SearchResult]:
         self.total_compare = 0
         self.total_completion_tokens = 0
         self.total_prompt_tokens = 0

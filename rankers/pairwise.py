@@ -23,10 +23,17 @@ class Text2TextGenerationDataset(Dataset):
 
 
 class PairwiseLlmRanker(LlmRanker):
-    def __init__(self, model_name_or_path, tokenizer_name_or_path, cache_dir, device, method="allpair", batch_size=2):
+    def __init__(self, model_name_or_path,
+                 tokenizer_name_or_path,
+                 cache_dir,
+                 device,
+                 method="allpair",
+                 batch_size=2,
+                 k=10):
         self.device = device
         self.method = method
         self.batch_size = batch_size
+        self.k = k
         self.prompt = """Given a query "{query}", which of the following two passages is more relevant to the query?
         
 Passage A: "{doc1}"
@@ -134,7 +141,7 @@ You are a helpful, respectful and honest assistant. Always answer as helpfully a
             # Heapify root element
             self.heapify(arr, i, 0)
 
-    def rerank(self, query: str, ranking: List[SearchResult], k=10) -> List[SearchResult]:
+    def rerank(self, query: str, ranking: List[SearchResult]) -> List[SearchResult]:
         original_ranking = copy.deepcopy(ranking)
         self.total_compare = 0
         self.total_completion_tokens = 0
@@ -206,7 +213,7 @@ You are a helpful, respectful and honest assistant. Always answer as helpfully a
                         return False
 
             arr = [ComparableDoc(docid=doc.docid, text=doc.text, ranker=self) for doc in ranking]
-            self.heapSort(arr, k)
+            self.heapSort(arr, self.k)
             ranking = [SearchResult(docid=doc.docid, score=-i, text=None) for i, doc in enumerate(reversed(arr))]
 
         #
@@ -224,7 +231,7 @@ You are a helpful, respectful and honest assistant. Always answer as helpfully a
         #                 ranking[current_ind - 1], ranking[current_ind] = ranking[current_ind], ranking[current_ind - 1]
         #             current_ind -= 1
         elif self.method == "bubblesort":
-            k = min(k, len(ranking))
+            k = min(self.k, len(ranking))
 
             last_end = len(ranking) - 1
             for i in range(k):
@@ -252,7 +259,7 @@ You are a helpful, respectful and honest assistant. Always answer as helpfully a
         results = []
         top_doc_ids = set()
         rank = 1
-        for i, doc in enumerate(ranking[:k]):
+        for i, doc in enumerate(ranking[:self.k]):
             top_doc_ids.add(doc.docid)
             results.append(SearchResult(docid=doc.docid, score=-rank, text=None))
             rank += 1
@@ -287,7 +294,7 @@ class DuoT5LlmRanker(PairwiseLlmRanker):
             batch_probs = batch_scores[:, 1]
         return batch_probs[0] > batch_probs[1]
 
-    def rerank(self, query: str, ranking: List[SearchResult], k=10) -> List[SearchResult]:
+    def rerank(self, query: str, ranking: List[SearchResult]) -> List[SearchResult]:
         original_ranking = copy.deepcopy(ranking)
         self.total_compare = 0
         self.total_completion_tokens = 0
@@ -302,7 +309,7 @@ class DuoT5LlmRanker(PairwiseLlmRanker):
                 def __gt__(self, other):
                     return self.ranker.compare(query, [self.text, other.text])
             arr = [ComparableDoc(docid=doc.docid, text=doc.text, ranker=self) for doc in ranking]
-            self.heapSort(arr, k)
+            self.heapSort(arr, self.k)
             ranking = [SearchResult(docid=doc.docid, score=-i, text=None) for i, doc in enumerate(reversed(arr))]
 
         else:
@@ -311,7 +318,7 @@ class DuoT5LlmRanker(PairwiseLlmRanker):
         results = []
         top_doc_ids = set()
         rank = 1
-        for i, doc in enumerate(ranking[:k]):
+        for i, doc in enumerate(ranking[:self.k]):
             top_doc_ids.add(doc.docid)
             results.append(SearchResult(docid=doc.docid, score=-rank, text=None))
             rank += 1

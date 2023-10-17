@@ -173,7 +173,7 @@ class OpenAiListwiseLlmRanker(LlmRanker):
                     print('reduce_length')
                     return 'ERROR::reduce_length'
 
-    def rerank(self,  query: str, ranking: List[SearchResult], k=10) -> List[SearchResult]:
+    def rerank(self,  query: str, ranking: List[SearchResult]) -> List[SearchResult]:
         self.total_compare = 0
         self.total_prompt_tokens = 0
         self.total_completion_tokens = 0

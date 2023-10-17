@@ -13,11 +13,19 @@ class SetwiseLlmRanker(LlmRanker):
     CHARACTERS = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L",
                   "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W"]  # "Passage X" and "Passage Y" will be tokenized into 3 tokens, so we dont use for now
 
-    def __init__(self, model_name_or_path, tokenizer_name_or_path, device, cache_dir, num_child=3,
-                 scoring='generation', method="heapsort"):
+    def __init__(self,
+                 model_name_or_path,
+                 tokenizer_name_or_path,
+                 device,
+                 cache_dir,
+                 num_child=3,
+                 k=10,
+                 scoring='generation',
+                 method="heapsort"):
 
         self.device = device
         self.num_child = num_child
+        self.k = k
         self.config = AutoConfig.from_pretrained(model_name_or_path, cache_dir=cache_dir)
         if self.config.model_type == 't5':
             self.tokenizer = T5Tokenizer.from_pretrained(tokenizer_name_or_path
@@ -157,13 +165,13 @@ You are a helpful, respectful and honest assistant. Always answer as helpfully a
             # Heapify root element
             self.heapify(arr, i, 0, query)
 
-    def rerank(self,  query: str, ranking: List[SearchResult], k=10) -> List[SearchResult]:
+    def rerank(self,  query: str, ranking: List[SearchResult]) -> List[SearchResult]:
         original_ranking = copy.deepcopy(ranking)
         self.total_compare = 0
         self.total_completion_tokens = 0
         self.total_prompt_tokens = 0
         if self.method == "heapsort":
-            self.heapSort(ranking, query, k)
+            self.heapSort(ranking, query, self.k)
             ranking = list(reversed(ranking))
 
         # elif self.method == "bubblesort":
@@ -189,7 +197,7 @@ You are a helpful, respectful and honest assistant. Always answer as helpfully a
         elif self.method == "bubblesort":
             last_start = len(ranking) - (self.num_child + 1)
 
-            for i in range(k):
+            for i in range(self.k):
                 start_ind = last_start
                 end_ind = last_start + (self.num_child + 1)
                 is_change = False
@@ -225,7 +233,7 @@ You are a helpful, respectful and honest assistant. Always answer as helpfully a
         top_doc_ids = set()
         rank = 1
 
-        for i, doc in enumerate(ranking[:k]):
+        for i, doc in enumerate(ranking[:self.k]):
             top_doc_ids.add(doc.docid)
             results.append(SearchResult(docid=doc.docid, score=-rank, text=None))
             rank += 1
@@ -241,11 +249,12 @@ You are a helpful, respectful and honest assistant. Always answer as helpfully a
 
 
 class OpenAiSetwiseLlmRanker(SetwiseLlmRanker):
-    def __init__(self, model_name_or_path, api_key, num_child=3, method='heapsort'):
+    def __init__(self, model_name_or_path, api_key, num_child=3, method='heapsort', k=10):
         self.llm = model_name_or_path
         self.tokenizer = tiktoken.encoding_for_model(model_name_or_path)
         self.num_child = num_child
         self.method = method
+        self.k = k
         self.total_compare = 0
         self.total_prompt_tokens = 0
         self.total_completion_tokens = 0
