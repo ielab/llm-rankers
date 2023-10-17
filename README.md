@@ -70,7 +70,7 @@ ranker = SetwiseLlmRanker(model_name_or_path='google/flan-t5-large',
 
 print(ranker.rerank(query, docs)[0])
 ```
-
+---
 ### Command lines examples:
 
 <details>
