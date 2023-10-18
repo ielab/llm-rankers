@@ -74,7 +74,7 @@ print(ranker.rerank(query, docs)[0])
 ### Command lines examples:
 
 <details>
-<summary><h3>Pointwise</h3></summary>
+<summary>Pointwise</summary>
 We have two pointwise methods implemented so far:
 
 `yes_no`: LLMs are prompted to generate whether the provided candidate document is relevant to the query. Candidate documents are re-ranked based on the normalized likelihood of generating a "yes" response.
@@ -115,7 +115,7 @@ We also have implemented supervised [monoT5](https://github.com/castorini/pygagg
 
 
 <details>
-<summary><h3>Listwise</h3></summary>
+<summary>Listwise</summary>
 
 Our implementation of listwise approach is following [RankGPT](https://github.com/sunnweiwei/RankGPT) [2]. It uses a sliding window sorting algorithm to re-rank documents.
 ```bash
@@ -196,7 +196,7 @@ ndcg_cut_10             all     0.6691
 </details>
 
 <details>
-<summary><h3>Pairwise</h3></summary>
+<summary>Pairwise</summary>
 We implement Pairwise prompting method proposed in [4].
 
 ```bash
@@ -233,7 +233,7 @@ Simply set `--model_name_or_path` and `--tokenizer_name_or_path` to `castorini/d
 </details>
 
 <details>
-<summary><h3>Setwise</h3></summary>
+<summary>Setwise</summary>
 
 Our proposed Setwise prompting can considerably speed up the sorting-based Pairwise methods. Check our paper [here](https://arxiv.org/abs/2310.09497) for more details.  
 
@@ -288,7 +288,7 @@ python3 run.py \
 </details>
 
 <details>
-<summary><h3>BEIR experiments</h3></summary>
+<summary>BEIR experiments</summary>
 
 For BEIR datasets experiments, change `--ir_dataset_name` to `--pyserini_index` with pyserini pre-build index.
 
