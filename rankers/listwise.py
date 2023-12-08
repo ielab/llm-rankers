@@ -4,7 +4,7 @@ from typing import List, Tuple
 import copy
 import openai
 import torch
-from transformers import T5Tokenizer, T5ForConditionalGeneration
+from transformers import T5Tokenizer, T5ForConditionalGeneration, AutoTokenizer, AutoModelForCausalLM, AutoConfig
 
 
 def max_tokens(model):
@@ -78,10 +78,13 @@ def create_permutation_instruction_chat(query: str, docs: List[SearchResult], mo
             messages.append({'role': 'assistant', 'content': f'Received passage [{rank}].'})
         messages.append({'role': 'user', 'content': get_post_prompt(query, num)})
 
-        if num_tokens_from_messages(messages, model_name) <= max_tokens(model_name) - 200:
-            break
+        if model_name is not None:
+            if num_tokens_from_messages(messages, model_name) <= max_tokens(model_name) - 200:
+                break
+            else:
+                max_length -= 1
         else:
-            max_length -= 1
+            break
     return messages
 
 
@@ -162,8 +165,7 @@ class OpenAiListwiseLlmRanker(LlmRanker):
                     model=self.llm,
                     messages=messages,
                     temperature=0.0,
-                    request_timeout=30)
-
+                    request_timeout=15)
                 self.total_completion_tokens += int(completion['usage']['completion_tokens'])
                 self.total_prompt_tokens += int(completion['usage']['prompt_tokens'])
                 return completion['choices'][0]['message']['content']
@@ -204,40 +206,68 @@ class ListwiseLlmRanker(OpenAiListwiseLlmRanker):
 
     def __init__(self, model_name_or_path, tokenizer_name_or_path, device, window_size, step_size,
                  scoring='generation', num_repeat=1, cache_dir=None):
-        self.tokenizer = T5Tokenizer.from_pretrained(tokenizer_name_or_path
-                                                     if tokenizer_name_or_path is not None else
-                                                     model_name_or_path, cache_dir=cache_dir)
-        self.llm = T5ForConditionalGeneration.from_pretrained(model_name_or_path,
-                                                              device_map='auto',
-                                                              torch_dtype=torch.float16 if device == 'cuda'
-                                                              else torch.float32,
-                                                              cache_dir=cache_dir)
+
         self.scoring = scoring
         self.device = device
         self.window_size = window_size
         self.step_size = step_size
         self.num_repeat = num_repeat
+        self.config = AutoConfig.from_pretrained(model_name_or_path, cache_dir=cache_dir)
 
-        self.decoder_input_ids = self.tokenizer.encode("<pad> Passage",
-                                                       return_tensors="pt",
-                                                       add_special_tokens=False).to(self.device) if self.tokenizer else None
-        self.target_token_ids = self.tokenizer.batch_encode_plus([f'<pad> Passage {self.CHARACTERS[i]}'
-                                                                  for i in range(len(self.CHARACTERS))],
-                                                                 return_tensors="pt",
-                                                                 add_special_tokens=False,
-                                                                 padding=True).input_ids[:, -1]
+        if self.config.model_type == 't5':
+            self.tokenizer = T5Tokenizer.from_pretrained(tokenizer_name_or_path
+                                                         if tokenizer_name_or_path is not None else
+                                                         model_name_or_path, cache_dir=cache_dir)
+            self.llm = T5ForConditionalGeneration.from_pretrained(model_name_or_path,
+                                                                  device_map='auto',
+                                                                  torch_dtype=torch.float16 if device == 'cuda'
+                                                                  else torch.float32,
+                                                                  cache_dir=cache_dir)
+
+            self.decoder_input_ids = self.tokenizer.encode("<pad> Passage",
+                                                           return_tensors="pt",
+                                                           add_special_tokens=False).to(self.device) if self.tokenizer else None
+            self.target_token_ids = self.tokenizer.batch_encode_plus([f'<pad> Passage {self.CHARACTERS[i]}'
+                                                                      for i in range(len(self.CHARACTERS))],
+                                                                     return_tensors="pt",
+                                                                     add_special_tokens=False,
+                                                                     padding=True).input_ids[:, -1]
+        elif self.config.model_type == 'llama':
+            self.tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, cache_dir=cache_dir)
+            self.tokenizer.use_default_system_prompt = False
+            if 'vicuna' and 'v1.5' in model_name_or_path:
+                self.tokenizer.chat_template = "{% if messages[0]['role'] == 'system' %}{% set loop_messages = messages[1:] %}{% set system_message = messages[0]['content'] %}{% else %}{% set loop_messages = messages %}{% set system_message = 'A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user\\'s questions.' %}{% endif %}{% for message in loop_messages %}{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}{% endif %}{% if loop.index0 == 0 %}{{ system_message }}{% endif %}{% if message['role'] == 'user' %}{{ ' USER: ' + message['content'].strip() }}{% elif message['role'] == 'assistant' %}{{ ' ASSISTANT: ' + message['content'].strip() + eos_token }}{% endif %}{% endfor %}{% if add_generation_prompt %}{{ ' ASSISTANT:' }}{% endif %}"
+
+            self.llm = AutoModelForCausalLM.from_pretrained(model_name_or_path,
+                                                            device_map='auto',
+                                                            torch_dtype=torch.float16 if device == 'cuda'
+                                                            else torch.float32,
+                                                            cache_dir=cache_dir).eval()
+        else:
+            raise NotImplementedError
 
     def compare(self, query: str, docs: List):
         self.total_compare += 1
         if self.scoring == 'generation':
-            input_text = create_permutation_instruction_complete(query, docs)
-            input_ids = self.tokenizer(input_text, return_tensors="pt", truncation=True).input_ids.to(self.device)
-            self.total_prompt_tokens += input_ids.shape[1]
+            input_text = create_permutation_instruction_chat(query, docs, model_name=None)
+            if self.config.model_type == 't5':
+                input_ids = self.tokenizer(input_text, return_tensors="pt", truncation=True).input_ids.to(self.device)
+                self.total_prompt_tokens += input_ids.shape[1]
 
-            output_ids = self.llm.generate(input_ids)[0]
-            self.total_completion_tokens += output_ids.shape[0]
-            output = self.tokenizer.decode(output_ids,
-                                           skip_special_tokens=True).strip()
+                output_ids = self.llm.generate(input_ids)[0]
+                self.total_completion_tokens += output_ids.shape[0]
+                output = self.tokenizer.decode(output_ids,
+                                               skip_special_tokens=True).strip()
+            elif self.config.model_type == 'llama':
+                input_ids = self.tokenizer.apply_chat_template(input_text, return_tensors="pt",
+                                                               add_generation_prompt=True).to(self.device)
+
+                self.total_prompt_tokens += input_ids.shape[1]
+
+                output_ids = self.llm.generate(input_ids)[0]
+                self.total_completion_tokens += output_ids.shape[0]
+                output = self.tokenizer.decode(output_ids[input_ids.shape[1]:],
+                                               skip_special_tokens=True).strip()
 
         elif self.scoring == 'likelihood':
             passages = "\n\n".join([f'Passage {self.CHARACTERS[i]}: "{doc.text}"' for i, doc in enumerate(docs)])

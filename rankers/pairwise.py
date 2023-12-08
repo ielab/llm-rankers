@@ -8,6 +8,10 @@ import torch
 from transformers import T5Tokenizer, T5ForConditionalGeneration, AutoConfig, AutoTokenizer, AutoModelForCausalLM
 from torch.utils.data import Dataset, DataLoader
 from transformers import DataCollatorWithPadding
+import tiktoken
+import openai
+import time
+import re
 
 
 class Text2TextGenerationDataset(Dataset):
@@ -36,7 +40,7 @@ class PairwiseLlmRanker(LlmRanker):
         self.batch_size = batch_size
         self.k = k
         self.prompt = """Given a query "{query}", which of the following two passages is more relevant to the query?
-        
+
 Passage A: "{doc1}"
 
 Passage B: "{doc2}"
@@ -59,14 +63,17 @@ Output Passage A or Passage B:"""
             self.decoder_input_ids = self.decoder_input_ids.repeat(self.batch_size, 1)
         elif self.config.model_type == 'llama':
             self.tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, cache_dir=cache_dir)
+            self.tokenizer.use_default_system_prompt = False
+            if 'vicuna' and 'v1.5' in model_name_or_path:
+                self.tokenizer.chat_template = "{% if messages[0]['role'] == 'system' %}{% set loop_messages = messages[1:] %}{% set system_message = messages[0]['content'] %}{% else %}{% set loop_messages = messages %}{% set system_message = 'A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user\\'s questions.' %}{% endif %}{% for message in loop_messages %}{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}{% endif %}{% if loop.index0 == 0 %}{{ system_message }}{% endif %}{% if message['role'] == 'user' %}{{ ' USER: ' + message['content'].strip() }}{% elif message['role'] == 'assistant' %}{{ ' ASSISTANT: ' + message['content'].strip() + eos_token }}{% endif %}{% endfor %}{% if add_generation_prompt %}{{ ' ASSISTANT:' }}{% endif %}"
+
+            self.tokenizer.pad_token = "[PAD]"
+            self.tokenizer.padding_side = "left"
             self.llm = AutoModelForCausalLM.from_pretrained(model_name_or_path,
                                                             device_map='auto',
                                                             torch_dtype=torch.float16 if device == 'cuda'
                                                             else torch.float32,
-                                                            cache_dir=cache_dir)
-            self.system_prompt = """\
-You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe. Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.\n\nIf a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.\
-"""
+                                                            cache_dir=cache_dir).eval()
         else:
             raise NotImplementedError
         self.total_compare = 0
@@ -93,19 +100,31 @@ You are a helpful, respectful and honest assistant. Always answer as helpfully a
 
             output = self.tokenizer.batch_decode(output_ids, skip_special_tokens=True)
 
-        # elif self.config.model_type == 'llama':
-        #     input_text = f'<s>[INST] <<SYS>>\n{self.system_prompt}\n<</SYS>>\n\n{input_text} [/INST] Passage'
-        #     input_ids = self.tokenizer(input_text, return_tensors="pt", add_special_tokens=False).input_ids.to(
-        #         self.device)
-        #     self.total_prompt_tokens += input_ids.shape[1]
-        #
-        #     output_ids = self.llm.generate(input_ids,
-        #                                    do_sample=False,
-        #                                    temperature=0.0,
-        #                                    top_p=None,
-        #                                    max_new_tokens=1)[0]
-        #     output = self.tokenizer.decode(output_ids[input_ids.shape[1]-2:],
-        #                                    skip_special_tokens=True).strip()
+        elif self.config.model_type == 'llama':
+            conversation0 = [{"role": "user", "content": input_texts[0]}]
+            conversation1 = [{"role": "user", "content": input_texts[1]}]
+
+            prompt0 = self.tokenizer.apply_chat_template(conversation0, tokenize=False, add_generation_prompt=True)
+            prompt0 += " Passage:"
+            prompt1 = self.tokenizer.apply_chat_template(conversation1, tokenize=False, add_generation_prompt=True)
+            prompt1 += " Passage:"
+
+            input_ids = self.tokenizer([prompt0, prompt1], return_tensors="pt").input_ids.to(self.device)
+            self.total_prompt_tokens += input_ids.shape[0] * input_ids.shape[1]
+
+            output_ids = self.llm.generate(input_ids,
+                                           do_sample=False,
+                                           temperature=0.0,
+                                           top_p=None,
+                                           max_new_tokens=1)
+
+            self.total_completion_tokens += output_ids.shape[0] * output_ids.shape[1]
+
+            output0 = self.tokenizer.decode(output_ids[0][input_ids.shape[1]:],
+                                            skip_special_tokens=True).strip().upper()
+            output1 = self.tokenizer.decode(output_ids[1][input_ids.shape[1]:],
+                                            skip_special_tokens=True).strip().upper()
+            return [f'Passage {output0}', f'Passage {output1}']
         else:
             raise NotImplementedError
 
@@ -276,6 +295,7 @@ You are a helpful, respectful and honest assistant. Always answer as helpfully a
 
 class DuoT5LlmRanker(PairwiseLlmRanker):
     def compare(self, query: str, docs: List[str]) -> bool:
+        self.total_compare += 1
         self.prompt = 'Query: {query} Document0: {doc1} Document1: {doc2} Relevant:'
 
         inputs = [self.prompt.format(query=query, doc1=docs[0], doc2=docs[1]),
@@ -284,6 +304,8 @@ class DuoT5LlmRanker(PairwiseLlmRanker):
         decode_ids = torch.full((2, 1),
                                 self.llm.config.decoder_start_token_id,
                                 dtype=torch.long, device=self.llm.device)
+
+        self.total_prompt_tokens += inputs['input_ids'].shape[0] * inputs['input_ids'].shape[1]
 
         with torch.no_grad():
             logits = self.llm(input_ids=inputs['input_ids'],
@@ -328,3 +350,103 @@ class DuoT5LlmRanker(PairwiseLlmRanker):
                 results.append(SearchResult(docid=doc.docid, score=-rank, text=None))
                 rank += 1
         return results
+
+
+class OpenAiPairwiseLlmRanker(PairwiseLlmRanker):
+    def __init__(self,
+                 model_name_or_path,
+                 api_key,
+                 method="heapsort",
+                 batch_size=2,
+                 k=10):
+        self.llm = model_name_or_path
+        self.tokenizer = tiktoken.encoding_for_model(model_name_or_path)
+        self.method = method
+        self.k = k
+        self.total_compare = 0
+        self.total_prompt_tokens = 0
+        self.total_completion_tokens = 0
+        self.CHARACTERS = ["A", "B"]
+        self.system_prompt = "You are RankGPT, an intelligent assistant specialized in selecting the most relevant passage from a pair of passages based on their relevance to the query."
+        self.prompt = """Given a query "{query}", which of the following two passages is more relevant to the query?
+        
+Passage A: "{doc1}"
+
+Passage B: "{doc2}"
+
+Output Passage A or Passage B:"""
+        openai.api_key = api_key
+
+    def _get_response(self, input_text):
+        while True:
+            try:
+                response = openai.ChatCompletion.create(
+                    model=self.llm,
+                    messages=[
+                        {"role": "system", "content": self.system_prompt},
+                        {"role": "user", "content": input_text},
+                    ],
+                    temperature=0.0,
+                    request_timeout=15
+                )
+                self.total_completion_tokens += int(response['usage']['completion_tokens'])
+                self.total_prompt_tokens += int(response['usage']['prompt_tokens'])
+
+                output = response['choices'][0]['message']['content']
+                matches = re.findall(r"(Passage [A-B])", output, re.MULTILINE)
+                if matches:
+                    output = matches[0][8]
+                elif output.strip() in self.CHARACTERS:
+                    pass
+                else:
+                    print(f"Unexpected output: {output}")
+                    output = "A"
+                return output
+
+            except openai.error.APIError as e:
+                # Handle API error here, e.g. retry or log
+                print(f"OpenAI API returned an API Error: {e}")
+                time.sleep(5)
+                continue
+            except openai.error.APIConnectionError as e:
+                # Handle connection error here
+                print(f"Failed to connect to OpenAI API: {e}")
+                time.sleep(5)
+                continue
+            except openai.error.RateLimitError as e:
+                # Handle rate limit error (we recommend using exponential backoff)
+                print(f"OpenAI API request exceeded rate limit: {e}")
+                time.sleep(5)
+                continue
+            except openai.error.InvalidRequestError as e:
+                # Handle invalid request error
+                print(f"OpenAI API request was invalid: {e}")
+                raise e
+            except openai.error.AuthenticationError as e:
+                # Handle authentication error
+                print(f"OpenAI API request failed authentication: {e}")
+                raise e
+            except openai.error.Timeout as e:
+                # Handle timeout error
+                print(f"OpenAI API request timed out: {e}")
+                time.sleep(5)
+                continue
+            except openai.error.ServiceUnavailableError as e:
+                # Handle service unavailable error
+                print(f"OpenAI API request failed with a service unavailable error: {e}")
+                time.sleep(5)
+                continue
+            except Exception as e:
+                print(f"Unknown error: {e}")
+                raise e
+
+    def compare(self, query: str, docs: List):
+        self.total_compare += 1
+        doc1, doc2 = docs[0], docs[1]
+        input_texts = [self.prompt.format(query=query, doc1=doc1, doc2=doc2),
+                       self.prompt.format(query=query, doc1=doc2, doc2=doc1)]
+
+        return [f'Passage {self._get_response(input_texts[0])}', f'Passage {self._get_response(input_texts[1])}']
+
+    def truncate(self, text, length):
+        return self.tokenizer.decode(self.tokenizer.encode(text)[:length])

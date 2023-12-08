@@ -6,7 +6,10 @@ import re
 from transformers import T5Tokenizer, T5ForConditionalGeneration, AutoConfig, AutoModelForCausalLM, AutoTokenizer
 import torch
 import copy
+from collections import Counter
 import tiktoken
+import random
+random.seed(929)
 
 
 class SetwiseLlmRanker(LlmRanker):
@@ -21,10 +24,12 @@ class SetwiseLlmRanker(LlmRanker):
                  k=10,
                  scoring='generation',
                  method="heapsort",
+                 num_permutation=1,
                  cache_dir=None):
 
         self.device = device
         self.num_child = num_child
+        self.num_permutation = num_permutation
         self.k = k
         self.config = AutoConfig.from_pretrained(model_name_or_path, cache_dir=cache_dir)
         if self.config.model_type == 't5':
@@ -52,14 +57,15 @@ class SetwiseLlmRanker(LlmRanker):
                                                                      padding=True).input_ids[:, -1]
         elif self.config.model_type == 'llama':
             self.tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, cache_dir=cache_dir)
+            self.tokenizer.use_default_system_prompt = False
+            if 'vicuna' and 'v1.5' in model_name_or_path:
+                self.tokenizer.chat_template = "{% if messages[0]['role'] == 'system' %}{% set loop_messages = messages[1:] %}{% set system_message = messages[0]['content'] %}{% else %}{% set loop_messages = messages %}{% set system_message = 'A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user\\'s questions.' %}{% endif %}{% for message in loop_messages %}{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}{% endif %}{% if loop.index0 == 0 %}{{ system_message }}{% endif %}{% if message['role'] == 'user' %}{{ ' USER: ' + message['content'].strip() }}{% elif message['role'] == 'assistant' %}{{ ' ASSISTANT: ' + message['content'].strip() + eos_token }}{% endif %}{% endfor %}{% if add_generation_prompt %}{{ ' ASSISTANT:' }}{% endif %}"
             self.llm = AutoModelForCausalLM.from_pretrained(model_name_or_path,
                                                             device_map='auto',
                                                             torch_dtype=torch.float16 if device == 'cuda'
                                                             else torch.float32,
-                                                            cache_dir=cache_dir)
-            self.system_prompt = """\
-You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe. Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.\n\nIf a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.\
-"""
+                                                            cache_dir=cache_dir).eval()
+
         self.scoring = scoring
         self.method = method
         self.total_compare = 0
@@ -67,34 +73,92 @@ You are a helpful, respectful and honest assistant. Always answer as helpfully a
         self.total_prompt_tokens = 0
 
     def compare(self, query: str, docs: List):
-        self.total_compare += 1
+        self.total_compare += 1 if self.num_permutation == 1 else self.num_permutation
+
         passages = "\n\n".join([f'Passage {self.CHARACTERS[i]}: "{doc.text}"' for i, doc in enumerate(docs)])
+        input_text = f'Given a query "{query}", which of the following passages is the most relevant one to the query?\n\n' \
+                     + passages + '\n\nOutput only the passage label of the most relevant passage:'
 
         if self.scoring == 'generation':
-            input_text = f'Given a query "{query}", which of the following passages is the most relevant one to the query?\n\n' \
-                         + passages + '\n\nOutput only the passage label of the most relevant passage:'
- 
-            input_ids = self.tokenizer(input_text, return_tensors="pt").input_ids.to(self.device)
-            self.total_prompt_tokens += input_ids.shape[1]
-
             if self.config.model_type == 't5':
-                output_ids = self.llm.generate(input_ids,
-                                               decoder_input_ids=self.decoder_input_ids,
-                                               max_new_tokens=2)[0]
 
-                self.total_completion_tokens += output_ids.shape[0]
+                if self.num_permutation == 1:
+                    input_ids = self.tokenizer(input_text, return_tensors="pt").input_ids.to(self.device)
+                    self.total_prompt_tokens += input_ids.shape[1]
 
-                output = self.tokenizer.decode(output_ids,
-                                               skip_special_tokens=True).strip()
-                output = output[-1]
+                    output_ids = self.llm.generate(input_ids,
+                                                   decoder_input_ids=self.decoder_input_ids,
+                                                   max_new_tokens=2)[0]
+
+                    self.total_completion_tokens += output_ids.shape[0]
+
+                    output = self.tokenizer.decode(output_ids,
+                                                   skip_special_tokens=True).strip()
+                    output = output[-1]
+                else:
+                    id_passage = [(i, p) for i, p in enumerate(docs)]
+                    labels = [self.CHARACTERS[i] for i in range(len(docs))]
+                    batch_data = []
+                    for _ in range(self.num_permutation):
+                        batch_data.append([random.sample(id_passage, len(id_passage)),
+                                           random.sample(labels, len(labels))])
+
+                    batch_ref = []
+                    input_text = []
+                    for batch in batch_data:
+                        ref = []
+                        passages = []
+                        characters = []
+                        for p, c in zip(batch[0], batch[1]):
+                            ref.append(p[0])
+                            passages.append(p[1].text)
+                            characters.append(c)
+                        batch_ref.append((ref, characters))
+                        passages = "\n\n".join([f'Passage {characters[i]}: "{passages[i]}"' for i in range(len(passages))])
+                        input_text.append(f'Given a query "{query}", which of the following passages is the most relevant one to the query?\n\n' \
+                                          + passages + '\n\nOutput only the passage label of the most relevant passage:')
+
+                    input_ids = self.tokenizer(input_text, return_tensors="pt").input_ids.to(self.device)
+                    self.total_prompt_tokens += input_ids.shape[1] * input_ids.shape[0]
+
+                    output_ids = self.llm.generate(input_ids,
+                                                   decoder_input_ids=self.decoder_input_ids.repeat(input_ids.shape[0], 1),
+                                                   max_new_tokens=2)
+                    output = self.tokenizer.batch_decode(output_ids[:, self.decoder_input_ids.shape[1]:],
+                                                         skip_special_tokens=True)
+
+                    # vote
+                    candidates = []
+                    for ref, result in zip(batch_ref, output):
+                        result = result.strip().upper()
+                        docids, characters = ref
+                        if len(result) != 1 or result not in characters:
+                            print(f"Unexpected output: {result}")
+                            continue
+                        win_doc = docids[characters.index(result)]
+                        candidates.append(win_doc)
+
+                    if len(candidates) == 0:
+                        print(f"Unexpected voting: {output}")
+                        output = "Unexpected voting."
+                    else:
+                        # handle tie
+                        candidate_counts = Counter(candidates)
+                        max_count = max(candidate_counts.values())
+                        most_common_candidates = [candidate for candidate, count in candidate_counts.items() if
+                                                  count == max_count]
+                        if len(most_common_candidates) == 1:
+                            output = self.CHARACTERS[most_common_candidates[0]]
+                        else:
+                            output = self.CHARACTERS[random.choice(most_common_candidates)]
 
             elif self.config.model_type == 'llama':
-                input_text = f'Given a query "{query}", which of the following passages is the most relevant one to the query?\n\n' \
-                             + passages + '\n\nOutput only the passage label of the most relevant passage:'
+                conversation = [{"role": "user", "content": input_text}]
 
-                input_text = f'<s>[INST] <<SYS>>\n{self.system_prompt}\n<</SYS>>\n\n{input_text} [/INST] ' \
-                             f'Based on the query "{query}", the most relevant passage is:\nPassage'
-                input_ids = self.tokenizer(input_text, return_tensors="pt", add_special_tokens=False).input_ids.to(self.device)
+                prompt = self.tokenizer.apply_chat_template(conversation, tokenize=False, add_generation_prompt=True)
+                prompt += " Passage:"
+
+                input_ids = self.tokenizer(prompt, return_tensors="pt").input_ids.to(self.device)
                 self.total_prompt_tokens += input_ids.shape[1]
 
                 output_ids = self.llm.generate(input_ids,
@@ -102,14 +166,15 @@ You are a helpful, respectful and honest assistant. Always answer as helpfully a
                                                temperature=0.0,
                                                top_p=None,
                                                max_new_tokens=1)[0]
+
+                self.total_completion_tokens += output_ids.shape[0]
+
                 output = self.tokenizer.decode(output_ids[input_ids.shape[1]:],
-                                               skip_special_tokens=True).strip()
+                                               skip_special_tokens=True).strip().upper()
             else:
                 raise NotImplementedError
 
         elif self.scoring == 'likelihood':
-            input_text = f'Given a query "{query}", which of the following passages is the most relevant one to the query?\n\n' \
-                         + passages + '\n\nOutput only the passage label of the most relevant passage:'
             if self.config.model_type == 't5':
                 input_ids = self.tokenizer(input_text, return_tensors="pt").input_ids.to(self.device)
                 self.total_prompt_tokens += input_ids.shape[1]
@@ -127,7 +192,6 @@ You are a helpful, respectful and honest assistant. Always answer as helpfully a
             pass
         else:
             print(f"Unexpected output: {output}")
-            output = self.CHARACTERS[0]
 
         return output
 
@@ -258,26 +322,27 @@ class OpenAiSetwiseLlmRanker(SetwiseLlmRanker):
         self.total_compare = 0
         self.total_prompt_tokens = 0
         self.total_completion_tokens = 0
+        self.system_prompt = "You are RankGPT, an intelligent assistant specialized in selecting the most relevant passage from a pool of passages based on their relevance to the query."
         openai.api_key = api_key
 
     def compare(self, query: str, docs: List):
         self.total_compare += 1
         passages = "\n\n".join([f'Passage {self.CHARACTERS[i]}: "{doc.text}"' for i, doc in enumerate(docs)])
         input_text = f'Given a query "{query}", which of the following passages is the most relevant one to the query?\n\n' \
-                     + passages + '\n\nOutput only the passage label of the most relevant passage:'
+                     + passages + '\n\nOutput only the passage label of the most relevant passage.'
 
         while True:
             try:
                 response = openai.ChatCompletion.create(
                     model=self.llm,
                     messages=[
-                        {"role": "user",
-                         "content": input_text},
+                        {"role": "system", "content": self.system_prompt},
+                        {"role": "user", "content": input_text},
                     ],
                     temperature=0.0,
-                    max_tokens=100,
                     request_timeout=15
                 )
+
                 self.total_completion_tokens += int(response['usage']['completion_tokens'])
                 self.total_prompt_tokens += int(response['usage']['prompt_tokens'])
 
@@ -318,6 +383,11 @@ class OpenAiSetwiseLlmRanker(SetwiseLlmRanker):
             except openai.error.Timeout as e:
                 # Handle timeout error
                 print(f"OpenAI API request timed out: {e}")
+                time.sleep(5)
+                continue
+            except openai.error.ServiceUnavailableError as e:
+                # Handle service unavailable error
+                print(f"OpenAI API request failed with a service unavailable error: {e}")
                 time.sleep(5)
                 continue
             except Exception as e:
