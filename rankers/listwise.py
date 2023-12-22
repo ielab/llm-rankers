@@ -249,8 +249,8 @@ class ListwiseLlmRanker(OpenAiListwiseLlmRanker):
     def compare(self, query: str, docs: List):
         self.total_compare += 1
         if self.scoring == 'generation':
-            input_text = create_permutation_instruction_chat(query, docs, model_name=None)
             if self.config.model_type == 't5':
+                input_text = create_permutation_instruction_complete(query, docs)
                 input_ids = self.tokenizer(input_text, return_tensors="pt", truncation=True).input_ids.to(self.device)
                 self.total_prompt_tokens += input_ids.shape[1]
 
@@ -259,6 +259,7 @@ class ListwiseLlmRanker(OpenAiListwiseLlmRanker):
                 output = self.tokenizer.decode(output_ids,
                                                skip_special_tokens=True).strip()
             elif self.config.model_type == 'llama':
+                input_text = create_permutation_instruction_chat(query, docs, model_name=None)
                 input_ids = self.tokenizer.apply_chat_template(input_text, return_tensors="pt",
                                                                add_generation_prompt=True).to(self.device)
 
