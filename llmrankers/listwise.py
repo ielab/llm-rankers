@@ -1,6 +1,6 @@
 import tiktoken
 from .rankers import LlmRanker, SearchResult
-from typing import List, Tuple
+from typing import List
 import copy
 import openai
 import torch

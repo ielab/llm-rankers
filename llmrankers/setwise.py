@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List
 from .rankers import LlmRanker, SearchResult
 import openai
 import time

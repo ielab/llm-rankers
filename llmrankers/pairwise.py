@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List
 from .rankers import LlmRanker, SearchResult
 from itertools import combinations
 from collections import defaultdict

@@ -4,7 +4,18 @@ Pointwise, Listwise, Pairwise and [Setwise](https://arxiv.org/pdf/2310.09497.pdf
 
 ---
 ## Installation
-Git clone this repository, then pip install the following libraries:
+Install via PyP
+```bash
+pip install llmrankers
+```
+Or typically for development and research, clone this repo and install as editable,
+```bash
+https://github.com/ielab/llm-rankers.git
+cd llm-rankers
+pip install -e .
+```
+
+The code is tested with the following dependencies:
 ```bash
 torch==2.0.1
 transformers==4.31.0
@@ -54,8 +65,8 @@ In this repository, we use DL 2019 as an example. That is, we always re-rank `ru
 ### Python code example:
 
 ```Python
-from rankers.setwise import SetwiseLlmRanker
-from rankers.rankers import SearchResult
+from llmrankers.setwise import SetwiseLlmRanker
+from llmrankers.rankers import SearchResult
 
 docs = [SearchResult(docid=i, text=f'this is passage {i}', score=None) for i in range(100)]
 query = 'Give me passage 34'

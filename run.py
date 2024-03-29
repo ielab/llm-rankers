@@ -2,11 +2,11 @@ import logging
 import ir_datasets
 from pyserini.search.lucene import LuceneSearcher
 from pyserini.search._base import get_topics
-from rankers.rankers import SearchResult
-from rankers.pointwise import PointwiseLlmRanker, MonoT5LlmRanker
-from rankers.setwise import SetwiseLlmRanker, OpenAiSetwiseLlmRanker
-from rankers.pairwise import PairwiseLlmRanker, DuoT5LlmRanker, OpenAiPairwiseLlmRanker
-from rankers.listwise import OpenAiListwiseLlmRanker, ListwiseLlmRanker
+from llmrankers.rankers import SearchResult
+from llmrankers.pointwise import PointwiseLlmRanker, MonoT5LlmRanker
+from llmrankers.setwise import SetwiseLlmRanker, OpenAiSetwiseLlmRanker
+from llmrankers.pairwise import PairwiseLlmRanker, DuoT5LlmRanker, OpenAiPairwiseLlmRanker
+from llmrankers.listwise import OpenAiListwiseLlmRanker, ListwiseLlmRanker
 from tqdm import tqdm
 import argparse
 import sys

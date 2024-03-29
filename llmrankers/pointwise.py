@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List
 from .rankers import LlmRanker, SearchResult
 from transformers import T5Tokenizer, T5ForConditionalGeneration
 from torch.utils.data import DataLoader
