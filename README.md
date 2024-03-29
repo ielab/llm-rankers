@@ -6,7 +6,7 @@ Pointwise, Listwise, Pairwise and [Setwise](https://arxiv.org/pdf/2310.09497.pdf
 ## Installation
 Install via PyP
 ```bash
-pip install llmrankers
+pip install llm-rankers
 ```
 Or typically for development and research, clone this repo and install as editable,
 ```bash
