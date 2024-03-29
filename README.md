@@ -10,7 +10,7 @@ pip install llm-rankers
 ```
 Or typically for development and research, clone this repo and install as editable,
 ```bash
-https://github.com/ielab/llm-rankers.git
+git clone https://github.com/ielab/llm-rankers.git
 cd llm-rankers
 pip install -e .
 ```
