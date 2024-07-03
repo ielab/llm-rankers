@@ -46,10 +46,6 @@ class SetwiseLlmRanker(LlmRanker):
                                                            return_tensors="pt",
                                                            add_special_tokens=False).to(self.device) if self.tokenizer else None
 
-            test = []
-            for i in range(len(self.CHARACTERS)):
-                test.append(f'<pad> Passage {self.CHARACTERS[i]}')
-
             self.target_token_ids = self.tokenizer.batch_encode_plus([f'<pad> Passage {self.CHARACTERS[i]}'
                                                                       for i in range(len(self.CHARACTERS))],
                                                                      return_tensors="pt",
