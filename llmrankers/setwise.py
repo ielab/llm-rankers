@@ -230,30 +230,10 @@ class SetwiseLlmRanker(LlmRanker):
         self.total_compare = 0
         self.total_completion_tokens = 0
         self.total_prompt_tokens = 0
+        
         if self.method == "heapsort":
             self.heapSort(ranking, query, self.k)
             ranking = list(reversed(ranking))
-
-        # elif self.method == "bubblesort":
-        #     for i in range(k):
-        #         start_ind = len(ranking) - (self.num_child + 1)
-        #         end_ind = len(ranking)
-        #         while True:
-        #             if start_ind < i:
-        #                 start_ind = i
-        #             output = self.compare(query, ranking[start_ind:end_ind])
-        #             try:
-        #                 best_ind = self.CHARACTERS.index(output)
-        #             except ValueError:
-        #                 best_ind = 0
-        #             if best_ind != 0:
-        #                 ranking[start_ind], ranking[start_ind + best_ind] = ranking[start_ind + best_ind], ranking[start_ind]
-        #
-        #             if start_ind == i:
-        #                 break
-        #
-        #             start_ind -= self.num_child
-        #             end_ind -= self.num_child
         elif self.method == "bubblesort":
             last_start = len(ranking) - (self.num_child + 1)
 
@@ -285,6 +265,28 @@ class SetwiseLlmRanker(LlmRanker):
 
                     start_ind -= self.num_child
                     end_ind -= self.num_child
+                    
+        ##  this is a bit slower but standard bobblesort implementation, keep here FYI
+        # elif self.method == "bubblesort":
+        #     for i in range(k):
+        #         start_ind = len(ranking) - (self.num_child + 1)
+        #         end_ind = len(ranking)
+        #         while True:
+        #             if start_ind < i:
+        #                 start_ind = i
+        #             output = self.compare(query, ranking[start_ind:end_ind])
+        #             try:
+        #                 best_ind = self.CHARACTERS.index(output)
+        #             except ValueError:
+        #                 best_ind = 0
+        #             if best_ind != 0:
+        #                 ranking[start_ind], ranking[start_ind + best_ind] = ranking[start_ind + best_ind], ranking[start_ind]
+        #
+        #             if start_ind == i:
+        #                 break
+        #
+        #             start_ind -= self.num_child
+        #             end_ind -= self.num_child
 
         else:
             raise NotImplementedError(f'Method {self.method} is not implemented.')
