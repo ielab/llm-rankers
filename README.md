@@ -1,6 +1,6 @@
 # llm-rankers
 Pointwise, Listwise, Pairwise and [Setwise](https://arxiv.org/pdf/2310.09497.pdf) Document Ranking with Large Language Models.
-> Note: The current code base only supports T5-style open-source LLMs, and OpenAI APIs for several methods. We are in the process of implementing support for more LLMs.
+> Our Setwise paper has been accepted at SIGIR2024!
 
 ---
 ## Installation
@@ -28,7 +28,30 @@ accelerate==0.22.0
 > Note the code base is tested with python=3.9 conda environment. You may also need to install some pyserini dependencies such as faiss. We refer to pyserini installation doc [link](https://github.com/castorini/pyserini/blob/master/docs/installation.md#development-installation)
 
 ---
-## First-stage runs
+
+## Python code example:
+
+```Python
+from llmrankers.setwise import SetwiseLlmRanker
+from llmrankers.rankers import SearchResult
+
+docs = [SearchResult(docid=i, text=f'this is passage {i}', score=None) for i in range(100)]
+query = 'Give me passage 34'
+
+ranker = SetwiseLlmRanker(model_name_or_path='google/flan-t5-large',
+                          tokenizer_name_or_path='google/flan-t5-large',
+                          device='cuda',
+                          num_child=10,
+                          scoring='generation',
+                          method='heapsort',
+                          k=10)
+
+print(ranker.rerank(query, docs)[0])
+```
+---
+
+## Experiment examples (TREC DL and BEIR)
+### First-stage runs
 We use LLMs to re-rank top documents retrieved by a first-stage retriever. In this repo we take BM25 as the retriever.
 
 We rely on [pyserini](https://github.com/castorini/pyserini) IR toolkit to get BM25 ranking. 
@@ -60,29 +83,7 @@ In this repository, we use DL 2019 as an example. That is, we always re-rank `ru
 
 --- 
 
-## Prompting Methods for zero-shot document ranking with LLMs
-
-### Python code example:
-
-```Python
-from llmrankers.setwise import SetwiseLlmRanker
-from llmrankers.rankers import SearchResult
-
-docs = [SearchResult(docid=i, text=f'this is passage {i}', score=None) for i in range(100)]
-query = 'Give me passage 34'
-
-ranker = SetwiseLlmRanker(model_name_or_path='google/flan-t5-large',
-                          tokenizer_name_or_path='google/flan-t5-large',
-                          device='cuda',
-                          num_child=10,
-                          scoring='generation',
-                          method='heapsort',
-                          k=10)
-
-print(ranker.rerank(query, docs)[0])
-```
----
-### Command lines examples:
+### Re-rank first stage run with LLMs
 
 <details>
 <summary>Pointwise</summary>
