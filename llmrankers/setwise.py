@@ -61,6 +61,8 @@ class SetwiseLlmRanker(LlmRanker):
                                                             torch_dtype=torch.float16 if device == 'cuda'
                                                             else torch.float32,
                                                             cache_dir=cache_dir).eval()
+        else:
+            raise NotImplementedError(f"Model type {self.config.model_type} is not supported yet for setwise:(")
 
         self.scoring = scoring
         self.method = method
@@ -167,8 +169,6 @@ class SetwiseLlmRanker(LlmRanker):
 
                 output = self.tokenizer.decode(output_ids[input_ids.shape[1]:],
                                                skip_special_tokens=True).strip().upper()
-            else:
-                raise NotImplementedError
 
         elif self.scoring == 'likelihood':
             if self.config.model_type == 't5':

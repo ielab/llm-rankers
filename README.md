@@ -354,25 +354,27 @@ ndcg_cut_10             all     0.7675
 
 ---
 
-## References
-[1] Devendra Sachan, Mike Lewis, Mandar Joshi, Armen Aghajanyan, Wen-tau Yih, Joelle Pineau, and Luke Zettlemoyer. 2022. Improving Passage Retrieval with Zero-Shot Question Generation
+## 🫡 References
+[1] Devendra Sachan, Mike Lewis, Mandar Joshi, Armen Aghajanyan, Wen-tau Yih, Joelle Pineau, and Luke Zettlemoyer, *Improving Passage Retrieval with Zero-Shot Question Generation*, EMNLP 2022
 
-[2] Weiwei Sun,Lingyong Yan,Xinyu Ma,Pengjie Ren,Dawei Yin,and Zhaochun Ren. 2023. Is ChatGPT Good at Search? 
+[2] Weiwei Sun,Lingyong Yan,Xinyu Ma,Pengjie Ren,Dawei Yin,and Zhaochun Ren, Is ChatGPT Good at Search? *Investigating Large Language Models as Re-Ranking Agents*, EMNLP 2023
 
-[3] Shengyao Zhuang, Honglei Zhuang, Bevan Koopman, and Guido Zuccon. 2023. A Setwise Approach for Effective and Highly Efficient Zero-shot Ranking with Large Language Models
+[3] Shengyao Zhuang, Honglei Zhuang, Bevan Koopman, and Guido Zuccon, *A Setwise Approach for Effective and Highly Efficient Zero-shot Ranking with Large Language Models*, SIGIR 2024
 
-[4] Zhen Qin, Rolf Jagerman, Kai Hui, Honglei Zhuang, Junru Wu, Jiaming Shen, Tianqi Liu, Jialu Liu, Donald Metzler, Xuanhui Wang, and Michael Bendersky. 2023. Large language models are effective text rankers with pairwise ranking prompting
+[4] Zhen Qin, Rolf Jagerman, Kai Hui, Honglei Zhuang, Junru Wu, Jiaming Shen, Tianqi Liu, Jialu Liu, Donald Metzler, Xuanhui Wang, and Michael Bendersky, *Large Language Models are Effective Text Rankers with Pairwise Ranking Prompting*, Findings: NAACL 2024
 
 
 
 ---
-If you used our code for your research, please consider to cite our paper:
+## 🙏 Citation
 
-```text
-@article{zhuang2023setwise,
-  title={A Setwise Approach for Effective and Highly Efficient Zero-shot Ranking with Large Language Models},
-  author={Zhuang, Shengyao and Zhuang, Honglei and Koopman, Bevan and Zuccon, Guido},
-  journal={arXiv preprint arXiv:2310.09497},
-  year={2023}
+```bibtex
+@inproceedings{zhuang2024setwise,
+    author={Zhuang, Shengyao and Zhuang, Honglei and Koopman, Bevan and Zuccon, Guido},
+    title={A Setwise Approach for Effective and Highly Efficient Zero-shot Ranking with Large Language Models},
+    booktitle = {Proceedings of the 47th International ACM SIGIR Conference on Research and Development in Information Retrieval},
+    year = {2024},
+    series = {SIGIR '24}
 }
+
 ```

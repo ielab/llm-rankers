@@ -75,7 +75,8 @@ Output Passage A or Passage B:"""
                                                             else torch.float32,
                                                             cache_dir=cache_dir).eval()
         else:
-            raise NotImplementedError
+            raise NotImplementedError(f"Model type {self.config.model_type} is not supported yet for pairwise :(")
+
         self.total_compare = 0
         self.total_completion_tokens = 0
         self.total_prompt_tokens = 0
@@ -85,6 +86,7 @@ Output Passage A or Passage B:"""
         doc1, doc2 = docs[0], docs[1]
         input_texts = [self.prompt.format(query=query, doc1=doc1, doc2=doc2),
                        self.prompt.format(query=query, doc1=doc2, doc2=doc1)]
+        output = None
         if self.config.model_type == 't5':
             input_ids = self.tokenizer(input_texts,
                                        padding='longest',
@@ -124,9 +126,7 @@ Output Passage A or Passage B:"""
                                             skip_special_tokens=True).strip().upper()
             output1 = self.tokenizer.decode(output_ids[1][input_ids.shape[1]:],
                                             skip_special_tokens=True).strip().upper()
-            return [f'Passage {output0}', f'Passage {output1}']
-        else:
-            raise NotImplementedError
+            output = [f'Passage {output0}', f'Passage {output1}']
 
         return output
 
@@ -236,7 +236,7 @@ Output Passage A or Passage B:"""
             self.heapSort(arr, self.k)
             ranking = [SearchResult(docid=doc.docid, score=-i, text=None) for i, doc in enumerate(reversed(arr))]
 
-        #
+        ##  this is a bit slower but standard bobblesort implementation, keep here FYI
         # elif self.method == "bubblesort":
         #     k = min(k, len(ranking))
         #     for i in range(k):

@@ -1,6 +1,6 @@
 from typing import List
 from .rankers import LlmRanker, SearchResult
-from transformers import T5Tokenizer, T5ForConditionalGeneration
+from transformers import T5Tokenizer, T5ForConditionalGeneration, AutoConfig
 from torch.utils.data import DataLoader
 from transformers import DataCollatorWithPadding
 from .pairwise import Text2TextGenerationDataset
@@ -15,11 +15,15 @@ class PointwiseLlmRanker(LlmRanker):
                                                      if tokenizer_name_or_path is not None else
                                                      model_name_or_path,
                                                      cache_dir=cache_dir)
-        self.llm = T5ForConditionalGeneration.from_pretrained(model_name_or_path,
-                                                              device_map='auto',
-                                                              torch_dtype=torch.float16 if device == 'cuda'
-                                                              else torch.float32,
-                                                              cache_dir=cache_dir)
+        self.config = AutoConfig.from_pretrained(model_name_or_path, cache_dir=cache_dir)
+        if self.config.model_type == 't5':
+            self.llm = T5ForConditionalGeneration.from_pretrained(model_name_or_path,
+                                                                  device_map='auto',
+                                                                  torch_dtype=torch.float16 if device == 'cuda'
+                                                                  else torch.float32,
+                                                                  cache_dir=cache_dir)
+        else:
+            raise NotImplementedError(f"Model type {self.config.model_type} is not supported yet for pointwise :(")
 
         self.device = device
         self.method = method

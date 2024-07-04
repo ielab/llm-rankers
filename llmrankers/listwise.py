@@ -244,7 +244,7 @@ class ListwiseLlmRanker(OpenAiListwiseLlmRanker):
                                                             else torch.float32,
                                                             cache_dir=cache_dir).eval()
         else:
-            raise NotImplementedError
+            raise NotImplementedError(f"Model type {self.config.model_type} is not supported yet for listwise :(")
 
     def compare(self, query: str, docs: List):
         self.total_compare += 1
