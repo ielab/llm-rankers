@@ -2,6 +2,7 @@
 
 In this work, we introduce Rank-R1, a Setwise reranker with reasoning abilities. 
 We trained Rank-R1 on the MSMARCO dataset using the GRPO RL algorithm.
+
 ---
 ## Installation
 For training and inference Rank-R1, first follow the README.md in the root directory to install llm-rankers. Then
@@ -35,7 +36,7 @@ prompt_user = '''Given the query: "{query}", which of the following documents is
 After completing the reasoning process, please provide only the label of the most relevant document to the query, enclosed in square brackets, within the answer tags. For example, if the third document is the most relevant, the answer should be: <think> reasoning process here </think> <answer>[3]</answer>.'''
 
 query = 'give me document 9'
-docs = [f'[{i}] document {i}' for i in range(1, 20)]
+docs = [f'[{i}] document {i}' for i in range(1, 21)]
 docs = '\n'.join(docs)
 
 messages = [
