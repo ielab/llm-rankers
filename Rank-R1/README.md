@@ -91,7 +91,7 @@ response = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
 # extract the answer
 import re
 pattern = '<think>.*?</think>\s*<answer>(.*?)</answer>'
-answer = re.search(pattern, response, re.DOTALL).group(1) # answer = '[9]'
+answer = re.search(pattern, response, re.DOTALL).group(1) # answer = '[6]'
 ```
 > Note that our Rank-R1 Setwise rerankers are trained with the prompt format shown above, which includes 20 documents. Other numbers of documents should also work fine, but this would represent a "zero-shot" setting for the model.
 ---
