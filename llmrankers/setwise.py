@@ -9,6 +9,12 @@ import copy
 from collections import Counter
 import tiktoken
 import random
+try:
+    from vllm import LLM, SamplingParams
+    from vllm.lora.request import LoRARequest
+except ImportError:
+    print("Seems vllm is not installed, RankR1SetwiseLlmRanker only supports vllm inference so far.")
+
 random.seed(929)
 
 
@@ -394,3 +400,154 @@ class OpenAiSetwiseLlmRanker(SetwiseLlmRanker):
 
     def truncate(self, text, length):
         return self.tokenizer.decode(self.tokenizer.encode(text)[:length])
+
+
+
+class RankR1SetwiseLlmRanker(SetwiseLlmRanker):
+    CHARACTERS = [f'[{i+1}]' for i in range(20)]
+
+    def __init__(self,
+                 model_name_or_path,
+                 prompt_file,
+                 lora_name_or_path=None,
+                 tokenizer_name_or_path=None,
+                 num_child=19,
+                 k=10,
+                 scoring='generation',
+                 method="heapsort",
+                 num_permutation=1,
+                 cache_dir=None,
+                 verbose=False):
+
+        if scoring != 'generation':
+            raise NotImplementedError(f"Scoring method {scoring} is not supported for RankR1SetwiseLlmRanker. RankR1SetwiseLlmRanker only supports 'generation' scoring.")
+        self.verbose = verbose
+
+        import toml
+        self.prompt = toml.load(prompt_file)
+
+        from huggingface_hub import snapshot_download
+        import os
+        if lora_name_or_path is not None:
+            # check if the path exists
+            if not os.path.exists(lora_name_or_path):
+                # download the model
+                lora_path = snapshot_download(lora_name_or_path)
+            else:
+                lora_path = lora_name_or_path
+        else:
+            lora_path = None
+
+        self.lora_path = lora_path
+        self.num_child = num_child
+        self.num_permutation = num_permutation
+        self.k = k
+        self.sampling_params = SamplingParams(temperature=0.0,
+                                              max_tokens=2048)
+        if tokenizer_name_or_path is None:
+            tokenizer_name_or_path = model_name_or_path
+        self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name_or_path, cache_dir=cache_dir)
+        self.llm = LLM(model=model_name_or_path,
+                       tokenizer=tokenizer_name_or_path,
+                       enable_lora=True if lora_name_or_path is not None else False,
+                       max_lora_rank=32,
+                       )
+
+        self.scoring = scoring
+        self.method = method
+        self.total_compare = 0
+        self.total_completion_tokens = 0
+        self.total_prompt_tokens = 0
+
+    def compare(self, query: str, docs: List):
+        self.total_compare += 1 if self.num_permutation == 1 else self.num_permutation
+
+        id_passage = [(i, p) for i, p in enumerate(docs)]
+        labels = [self.CHARACTERS[i] for i in range(len(docs))]
+        batch_data = []
+        for _ in range(self.num_permutation):
+            batch_data.append([random.sample(id_passage, len(id_passage)),
+                               labels])
+
+        batch_ref = []
+        input_text = []
+        for batch in batch_data:
+            ref = []
+            passages = []
+            characters = []
+            for p, c in zip(batch[0], batch[1]):
+                ref.append(p[0])
+                passages.append(p[1].text)
+                characters.append(c)
+            batch_ref.append((ref, characters))
+            passages = "\n".join([f'{characters[i]} {passages[i]}' for i in range(len(passages))])
+            system_message = self.prompt["prompt_system"]
+            user_message = self.prompt['prompt_user'].format(query=query,
+                                                             docs=passages)
+            input_text.append([
+                {'role': "system", 'content': system_message},
+                {'role': "user", 'content': user_message}
+            ])
+        outputs = self.llm.chat(input_text,
+                                sampling_params=self.sampling_params,
+                                use_tqdm=False,
+                                lora_request=LoRARequest("R1adapter",
+                                                         1,
+                                                         self.lora_path)
+                                if self.lora_path is not None else None,
+                                )
+        results = []
+        for output, input in zip(outputs, input_text):
+            self.total_completion_tokens += len(output.outputs[0].token_ids)
+            self.total_prompt_tokens += len(output.prompt_token_ids)
+
+            completion = output.outputs[0].text
+
+            if self.verbose:
+                print('--------------------------------------')
+                print(f'query: {query}')
+                print(f'input_text:\n{self.tokenizer.apply_chat_template(input, tokenize=False)}')
+                print(f'completion:\n{completion}')
+                print('--------------------------------------')
+
+            pattern = rf'{self.prompt["pattern"]}'
+            match = re.search(pattern, completion.lower(), re.DOTALL)
+            if match:
+                results.append(match.group(1).strip())
+            else:
+                results.append(f'input_text:\n{input}, completion:\n{completion}')
+
+        # vote
+        candidates = []
+        for ref, result in zip(batch_ref, results):
+            result = result.strip()
+            docids, characters = ref
+            if result not in characters:
+                if self.verbose:
+                    print(f"Unexpected output: {result}")
+                continue
+            win_doc = docids[characters.index(result)]
+            candidates.append(win_doc)
+
+        if len(candidates) == 0:
+            if self.verbose:
+                print(f"Unexpected voting: {results}")
+            output = "Unexpected voting."
+        else:
+            # handle tie
+            candidate_counts = Counter(candidates)
+            max_count = max(candidate_counts.values())
+            most_common_candidates = [candidate for candidate, count in candidate_counts.items() if
+                                      count == max_count]
+            if len(most_common_candidates) == 1:
+                output = self.CHARACTERS[most_common_candidates[0]]
+            else:
+                output = self.CHARACTERS[random.choice(most_common_candidates)]
+
+        if output in self.CHARACTERS:
+            pass
+        else:
+            if self.verbose:
+                print(f"Unexpected output: {output}")
+
+        return output

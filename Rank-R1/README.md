@@ -13,8 +13,28 @@ pip install peft deepspeed
 ```
 ---
 ## Inference Rank-R1
-### Python transformers example:
-```python
+### Python example:
+
+```Python
+from llmrankers.setwise import RankR1SetwiseLlmRanker
+from llmrankers.rankers import SearchResult
+
+docs = [SearchResult(docid=i, text=f'this is passage {i}', score=None) for i in range(20)]
+query = 'Give me passage 6'
+
+ranker = RankR1SetwiseLlmRanker(
+    model_name_or_path='Qwen/Qwen2.5-7B-Instruct',
+    lora_name_or_path='ielabgroup/Rank-R1-7B-v0.1',
+    prompt_file='prompts/prompt_setwise-R1.toml',
+    num_child=19,
+    k=1,
+    verbose=True
+)
+
+print(ranker.rerank(query, docs)[0])
+```
+Internally, the above code is equivalent to the following:
+```Python
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import PeftModel, PeftConfig
@@ -35,8 +55,8 @@ prompt_user = '''Given the query: "{query}", which of the following documents is
 {docs}
 After completing the reasoning process, please provide only the label of the most relevant document to the query, enclosed in square brackets, within the answer tags. For example, if the third document is the most relevant, the answer should be: <think> reasoning process here </think> <answer>[3]</answer>.'''
 
-query = 'give me document 9'
-docs = [f'[{i}] document {i}' for i in range(1, 21)]
+query = 'Give me passage 6'
+docs = [f'[{i}] this is passage {i}' for i in range(1, 21)]
 docs = '\n'.join(docs)
 
 messages = [
