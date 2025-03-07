@@ -1,0 +1,7 @@
+prompt_system = "A conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant provides the user with the answer enclosed within <answer> </answer> tags, i.e., <answer> answer here </answer>."
+
+prompt_user = '''Given the query: "{query}", which of the following documents is most relevant?
+{docs}
+Please provide only the label of the most relevant document to the query, enclosed in square brackets, within the answer tags. For example, if the third document is the most relevant, the answer should be: <answer>[3]</answer>.'''
+
+pattern = '<answer>(.*?)</answer>'

@@ -3,6 +3,10 @@ Pointwise, Listwise, Pairwise and [Setwise](https://arxiv.org/pdf/2310.09497.pdf
 > Our Setwise paper has been accepted at SIGIR2024!
 
 ---
+## News
+- **2025-03-08**: We introduce *Rank-R1* a new setwise reranker with reasoning ability! Check out the [Rank-R1](Rank-R1) folder for more details.
+
+---
 ## Installation
 Install via PyP
 ```bash

@@ -1,0 +1,12 @@
+prompt_system = "A conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant first thinks about the reasoning process in the mind and then provides the user with the answer. The reasoning process and answer are enclosed within <think> </think> and <answer> </answer> tags, respectively, i.e., <think> reasoning process here </think> <answer> answer here </answer>."
+
+prompt_user = '''Task: Given a web search query, find relevant passages that answer the query.
+
+Query: "{query}"
+
+Documents:
+{docs}
+
+After completing the reasoning process, provide only the label of the document that best addresses my query, within the answer tags. The label should be enclosed in square brackets. For example, if the third document is the best one, your response should be: <think> reasoning process here </think> <answer>[3]</answer>.'''
+
+pattern = '<think>.*?</think>\s*<answer>(.*?)</answer>'
