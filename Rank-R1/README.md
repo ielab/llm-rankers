@@ -1,3 +1,5 @@
+from sympy.physics.units import temperature
+
 # Rank-R1: Enhancing Reasoning in LLM-based Document Rerankers via Reinforcement Learning
 
 In this work, we introduce Rank-R1, a Setwise reranker with reasoning abilities. 
@@ -56,7 +58,7 @@ prompt_user = '''Given the query: "{query}", which of the following documents is
 After completing the reasoning process, please provide only the label of the most relevant document to the query, enclosed in square brackets, within the answer tags. For example, if the third document is the most relevant, the answer should be: <think> reasoning process here </think> <answer>[3]</answer>.'''
 
 query = 'Give me passage 6'
-docs = [f'[{i}] this is passage {i}' for i in range(1, 21)]
+docs = [f'[{i+1}] this is passage {i+1}' for i in range(20)]
 docs = '\n'.join(docs)
 
 messages = [
@@ -74,6 +76,7 @@ model_inputs = tokenizer([text], return_tensors="pt").to('cuda:0')
 generated_ids = model.generate(
     model_inputs.input_ids,
     max_new_tokens=2048,
+    do_sample=False,
 )
 generated_ids = [
     output_ids[len(input_ids)-1:] for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)
@@ -81,8 +84,8 @@ generated_ids = [
 
 response = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
 '''
-<think> The query is "give me document 9". This directly specifies that the user wants the ninth document in the list provided. Therefore, the most relevant document to this query is document 9. </think>
-<answer>[9]</answer>
+<think> The query "Give me passage 6" is asking for the specific document that contains the text "this is passage 6". By looking at the list provided, we can see that the document labeled [6] matches this description exactly. </think>
+<answer>[6]</answer>
 '''
 
 # extract the answer
