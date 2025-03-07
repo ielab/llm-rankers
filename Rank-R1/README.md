@@ -1,5 +1,3 @@
-from sympy.physics.units import temperature
-
 # Rank-R1: Enhancing Reasoning in LLM-based Document Rerankers via Reinforcement Learning
 
 In this work, we introduce Rank-R1, a Setwise reranker with reasoning abilities. 
