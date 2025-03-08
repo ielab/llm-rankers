@@ -96,7 +96,7 @@ answer = re.search(pattern, response, re.DOTALL).group(1) # answer = '[6]'
 ### Released Models (LoRA adapters)
 | Resource                                                                       | Description                       |
 |:-------------------------------------------------------------------------------|:----------------------------------|
-| [Rank-R1-7B-v0.1](https://huggingface.co/ielabgroup/Rank-R1-3B-v0.1)           | Trained from Qwen2.5-3B-Instruct  |
+| [Rank-R1-3B-v0.1](https://huggingface.co/ielabgroup/Rank-R1-3B-v0.1)           | Trained from Qwen2.5-3B-Instruct  |
 | [Rank-R1-7B-v0.1](https://huggingface.co/ielabgroup/Rank-R1-7B-v0.1)           | Trained from Qwen2.5-7B-Instruct  |
 | [Rank-R1-14B-v0.1](https://huggingface.co/ielabgroup/Rank-R1-14B-v0.1)         | Trained from Qwen2.5-14B-Instruct |
 | [Setwise-SFT-3B-v0.1](https://huggingface.co/ielabgroup/Setwise-SFT-3B-v0.1)   | Trained from Qwen2.5-3B-Instruct  |
