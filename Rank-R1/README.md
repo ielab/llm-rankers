@@ -307,7 +307,7 @@ python create_dataset.py
 ```
 Step 2: Train
 ```bash
-python train_grpo.py
+deepspeed --include localhost:0,1,2,3 --master_port 60000 train_grpo.py
 ```
 </details>
 
@@ -320,6 +320,6 @@ python create_dataset_sft.py
 ```
 Step 2: Train
 ```bash
-python train_sft.py
+deepspeed --include localhost:0,1,2,3 --master_port 60000 train_sft.py
 ```
 </details>

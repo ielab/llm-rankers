@@ -5,7 +5,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, DataCollatorForLan
 
 dataset = load_from_disk("msmarco-passage-setwise-sft")
 model_name = "Qwen/Qwen2.5-3B-Instruct"
-batch_size = 64
+batch_size = 8
 gradient_accumulation_steps = 8
 
 tokenizer = AutoTokenizer.from_pretrained(model_name)

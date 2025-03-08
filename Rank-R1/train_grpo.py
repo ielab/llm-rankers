@@ -23,7 +23,7 @@ def reward_func_setwise(completions, ground_truth, **kwargs):
 
 dataset = load_from_disk("msmarco-passage-setwise-r1")
 model_name = "Qwen/Qwen2.5-3B-Instruct"
-batch_size = 64
+batch_size = 8
 num_generations = 8
 
 model = AutoModelForCausalLM.from_pretrained(
