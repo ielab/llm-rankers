@@ -4,7 +4,7 @@ Pointwise, Listwise, Pairwise and [Setwise](https://arxiv.org/pdf/2310.09497.pdf
 
 ---
 ## News
-- **2025-03-08**: We introduce *Rank-R1* a new setwise reranker with reasoning ability! Check out the [Rank-R1](Rank-R1) folder for more details.
+- **2025-03-08**: We introduce *Rank-R1* a new setwise reranker with reasoning ability! Check out the [Rank-R1](Rank-R1) folder and [paper](https://arxiv.org/abs/2503.06034) for more details.
 
 ---
 ## Installation
