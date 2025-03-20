@@ -1,7 +1,8 @@
 # Rank-R1: Enhancing Reasoning in LLM-based Document Rerankers via Reinforcement Learning
 
 In this work, we introduce Rank-R1, a Setwise reranker with reasoning abilities. 
-We trained Rank-R1 on the MSMARCO dataset using the GRPO RL algorithm.
+We trained Rank-R1 on the MSMARCO dataset using the GRPO RL algorithm. 
+Check out the [paper](https://arxiv.org/abs/2503.06034) for more details.
 
 ---
 ## Installation
@@ -297,6 +298,8 @@ for size in 3 7 14; do
     done
 done
 ```
+
+---
 ## Training 
 <details>
 <summary>Train Rank-R1 GRPO</summary>
@@ -323,3 +326,19 @@ Step 2: Train
 deepspeed --include localhost:0,1,2,3 --master_port 60000 train_sft.py
 ```
 </details>
+
+
+---
+## Citation
+
+```bibtex
+@misc{zhuang2025rankr1enhancingreasoningllmbased,
+      title={Rank-R1: Enhancing Reasoning in LLM-based Document Rerankers via Reinforcement Learning}, 
+      author={Shengyao Zhuang and Xueguang Ma and Bevan Koopman and Jimmy Lin and Guido Zuccon},
+      year={2025},
+      eprint={2503.06034},
+      archivePrefix={arXiv},
+      primaryClass={cs.IR},
+      url={https://arxiv.org/abs/2503.06034}, 
+}
+```
