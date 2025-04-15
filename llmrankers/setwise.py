@@ -222,7 +222,10 @@ class SetwiseT5Ranker(SetwiseLlmRanker):
     TRANSFORMER_CLS = T5ForConditionalGeneration
 
     def __init__(self,
+                 use_vllm=False,
                  **kwargs):
+        if use_vllm:
+            raise NotImplementedError("VLLM is not supported yet for T5ForConditionalGeneration model.")
         super().__init__(**kwargs)
 
         self.decoder_input_ids = self.tokenizer.encode(self.prompt['assistant_prefix'],
