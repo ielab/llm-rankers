@@ -1,0 +1,16 @@
+user = '''Given a query "{query}", which of the following passages is the most relevant one to the query?
+
+{docs}
+
+Output only the passage label of the most relevant passage:'''
+
+labels = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L",  "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
+
+doc_separator = "\n\n"
+
+doc_prefix = "f'Passage [{label}]: "
+
+assistant_prefix = "<pad> Passage ["
+
+pattern = '<pad> Passage \[(.*?)\]'
+
