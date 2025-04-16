@@ -175,6 +175,15 @@ def main(args):
             current_ranking.append(SearchResult(docid=docid, score=float(score), text=text))
         first_stage_rankings.append((current_qid, query_map[current_qid], current_ranking[:args.run.hits]))
 
+    # if save_path file exists, load it
+    ranked_qids = set()
+    if os.path.exists(args.run.save_path):
+        print(f'{args.run.save_path} exists. Continue ranking')
+        reranked_rankings = load_run_file(args.run.save_path, query_map, ranker, docstore,
+                                          args.run.hits, args.run.passage_length)
+        for qid, _, _ in reranked_rankings:
+            ranked_qids.add(qid)
+
     reranked_results = []
     total_comparisons = 0
     total_prompt_tokens = 0

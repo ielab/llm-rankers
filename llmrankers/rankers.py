@@ -3,6 +3,7 @@ from typing import List, Tuple
 import os
 from transformers import AutoTokenizer, AutoConfig, AutoModelForCausalLM
 import toml
+from .arguments import RankerArguments
 
 @dataclass
 class SearchResult:
@@ -15,18 +16,20 @@ class LlmRanker:
     TRANSFORMER_CLS = AutoModelForCausalLM
 
     def __init__(self,
-                 prompt_file,
-                 model_name_or_path,
-                 lora_name_or_path=None,
-                 tokenizer_name_or_path=None,
-                 apply_chat_template=True,
-                 max_query_length=512,
-                 max_doc_length=512,
-                 dtype='float16',
-                 use_vllm=False,
-                 cache_dir=None,
-                 verbose=False
+                 args: RankerArguments,
                  ):
+
+        prompt_file = args.prompt_file
+        model_name_or_path = args.model_name_or_path
+        lora_name_or_path = args.lora_name_or_path
+        tokenizer_name_or_path = args.tokenizer_name_or_path
+        apply_chat_template = args.apply_chat_template
+        max_query_length = args.max_query_length
+        max_doc_length = args.max_doc_length
+        dtype =  args.dtype
+        use_vllm = args.use_vllm
+        cache_dir = args.cache_dir
+        verbose = args.verbose
 
         self.prompt = toml.load(prompt_file)
         self.max_query_length = max_query_length

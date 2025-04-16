@@ -1,59 +1,30 @@
 from typing import List
 
-from sympy.core.random import sample
+from .arguments import SetwiseArguments, RankerArguments
 
 from .rankers import LlmRanker, SearchResult
-import openai
-import time
 import re
-from transformers import T5Tokenizer, T5ForConditionalGeneration, AutoConfig, AutoModelForCausalLM, AutoTokenizer
+from transformers import T5ForConditionalGeneration
 import torch
 import copy
-from collections import Counter
-import tiktoken
-import random
-try:
-    from vllm import LLM, SamplingParams
-    from vllm.lora.request import LoRARequest
-except ImportError:
-    print("Seems vllm is not installed, RankR1SetwiseLlmRanker only supports vllm inference so far.")
-
-random.seed(929)
+import logging
+logger = logging.getLogger(__name__)
 
 
 class SetwiseLlmRanker(LlmRanker):
 
     def __init__(self,
-                 prompt_file,
-                 model_name_or_path,
-                 lora_name_or_path=None,
-                 tokenizer_name_or_path=None,
-                 apply_chat_template=True,
-                 max_query_length=512,
-                 max_doc_length=512,
-                 dtype='float16',
-                 use_vllm=False,
-                 cache_dir=None,
-                 verbose=False,
-                 num_child=3,
-                 k=10,
-                 scoring='generation',
-                 method="heapsort"):
+                 ranker_args: RankerArguments,
+                 setwise_args: SetwiseArguments):
 
-        super().__init__(prompt_file=prompt_file,
-                         model_name_or_path=model_name_or_path,
-                         lora_name_or_path=lora_name_or_path,
-                         tokenizer_name_or_path=tokenizer_name_or_path,
-                         max_query_length=max_query_length,
-                         max_doc_length=max_doc_length,
-                         apply_chat_template=apply_chat_template,
-                         dtype=dtype,
-                         use_vllm=use_vllm,
-                         cache_dir=cache_dir,
-                         verbose=verbose)
+        super().__init__(ranker_args)
 
-        self.num_child = num_child
-        self.k = k
+
+
+        self.num_child = setwise_args.num_child
+        self.k = setwise_args.k
+        self.scoring = setwise_args.scoring
+        self.sort = setwise_args.sort
 
         # self.config = AutoConfig.from_pretrained(model_name_or_path, cache_dir=cache_dir)
         # if self.config.model_type == 't5':
@@ -86,8 +57,6 @@ class SetwiseLlmRanker(LlmRanker):
         # else:
         #     raise NotImplementedError(f"Model type {self.config.model_type} is not supported yet for setwise:(")
 
-        self.scoring = scoring
-        self.method = method
 
     def compare(self, query: str, docs: List[SearchResult]):
         raise NotImplementedError
@@ -139,10 +108,10 @@ class SetwiseLlmRanker(LlmRanker):
         self.total_completion_tokens = 0
         self.total_prompt_tokens = 0
 
-        if self.method == "heapsort":
+        if self.sort == "heapsort":
             self.heapSort(ranking, query, self.k)
             ranking = list(reversed(ranking))
-        elif self.method == "bubblesort":
+        elif self.sort == "bubblesort":
             last_start = len(ranking) - (self.num_child + 1)
 
             for i in range(self.k):
@@ -175,7 +144,7 @@ class SetwiseLlmRanker(LlmRanker):
                     end_ind -= self.num_child
                     
         ##  this is a bit slower but standard bobblesort implementation, keep here FYI
-        # elif self.method == "bubblesort":
+        # elif self.sort == "bubblesort":
         #     for i in range(k):
         #         start_ind = len(ranking) - (self.num_child + 1)
         #         end_ind = len(ranking)
@@ -197,7 +166,7 @@ class SetwiseLlmRanker(LlmRanker):
         #             end_ind -= self.num_child
 
         else:
-            raise NotImplementedError(f'Method {self.method} is not implemented.')
+            raise NotImplementedError(f'Method {self.sort} is not implemented.')
 
         results = []
         top_doc_ids = set()
@@ -222,11 +191,9 @@ class SetwiseT5Ranker(SetwiseLlmRanker):
     TRANSFORMER_CLS = T5ForConditionalGeneration
 
     def __init__(self,
-                 use_vllm=False,
-                 **kwargs):
-        if use_vllm:
-            raise NotImplementedError("VLLM is not supported yet for T5ForConditionalGeneration model.")
-        super().__init__(**kwargs)
+                 ranker_args: RankerArguments,
+                 setwise_args: SetwiseArguments):
+        super().__init__(ranker_args, setwise_args)
 
         self.decoder_input_ids = self.tokenizer.encode(self.prompt['assistant_prefix'],
                                                        return_tensors="pt",
@@ -272,6 +239,7 @@ class SetwiseT5Ranker(SetwiseLlmRanker):
             if match:
                 result = match.group(1).strip()
             else:
+                logger.warning(f"Pattern '{pattern}' not found in output '{output}'.")
                 result = self.labels[0]
 
 

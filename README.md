@@ -16,7 +16,13 @@ Or typically for development and research, clone this repo and install as editab
 ```bash
 git clone https://github.com/ielab/llm-rankers.git
 cd llm-rankers
+pip install transformers datasets peft accelerate toml
 pip install -e .
+```
+
+For running TREC and BEIR experiments, install [Pyserini](https://github.com/castorini/pyserini):
+```bash
+pip install pyserini
 ```
 
 The code is tested with the following dependencies:
