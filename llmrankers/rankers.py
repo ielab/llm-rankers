@@ -30,11 +30,13 @@ class LlmRanker:
         use_vllm = args.use_vllm
         cache_dir = args.cache_dir
         verbose = args.verbose
+        scoring = args.scoring
 
         self.prompt = toml.load(prompt_file)
         self.max_query_length = max_query_length
         self.max_doc_length = max_doc_length
         self.labels = self.prompt['labels']
+        self.scoring = scoring
 
         self.lora_name_or_path = lora_name_or_path
         if tokenizer_name_or_path is None:

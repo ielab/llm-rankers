@@ -1,9 +1,13 @@
 import logging
+
+from more_itertools.recipes import pairwise
 from pyserini.search.lucene import LuceneSearcher
 from pyserini.search._base import get_topics
 from llmrankers import SearchResult
 from llmrankers import SetwiseLlmRanker, SetwiseT5Ranker
-from llmrankers.arguments import ExperimentArguments, RankerArguments, SetwiseArguments
+from llmrankers.arguments import (
+ExperimentArguments, RankerArguments, SetwiseArguments,
+PairwiseArguments, PointwiseArguments, ListwiseArguments)
 from transformers import HfArgumentParser, set_seed
 import os
 from tqdm import tqdm
@@ -51,8 +55,23 @@ def write_run_file(path, results, tag):
 
 
 def main():
-    parser = HfArgumentParser((ExperimentArguments, RankerArguments, SetwiseArguments))
-    exp_args, ranker_args, method_args = parser.parse_args_into_dataclasses()
+    parser = HfArgumentParser((ExperimentArguments, RankerArguments))
+    exp_args, ranker_args, method_args = parser.parse_args_into_dataclasses(return_remaining_strings=True)
+
+    if exp_args.method == 'setwise':
+        method_args_cls = SetwiseArguments
+    elif exp_args.method == 'pairwise':
+        method_args_cls = PairwiseArguments
+    elif exp_args.method == 'pointwise':
+        method_args_cls = PointwiseArguments
+    elif exp_args.method == 'listwise':
+        method_args_cls = ListwiseArguments
+    else:
+        raise ValueError(f'Invalid method: {exp_args.method}.')
+
+    parser = HfArgumentParser(method_args_cls)
+    method_args, = parser.parse_args_into_dataclasses(method_args)
+
     set_seed(exp_args.seed)
 
     ranker = SetwiseT5Ranker(ranker_args, method_args)
@@ -93,7 +112,6 @@ def main():
         for qid, _, _ in reranked_rankings:
             ranked_qids.add(qid)
 
-    reranked_results = []
     total_ranked = 0
     total_comparisons = 0
     total_prompt_tokens = 0

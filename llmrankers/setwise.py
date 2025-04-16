@@ -23,7 +23,6 @@ class SetwiseLlmRanker(LlmRanker):
 
         self.num_child = setwise_args.num_child
         self.k = setwise_args.k
-        self.scoring = setwise_args.scoring
         self.sort = setwise_args.sort
 
         # self.config = AutoConfig.from_pretrained(model_name_or_path, cache_dir=cache_dir)
