@@ -1,6 +1,5 @@
 import logging
 
-from more_itertools.recipes import pairwise
 from pyserini.search.lucene import LuceneSearcher
 from pyserini.search._base import get_topics
 from llmrankers import SearchResult
@@ -74,7 +73,17 @@ def main():
 
     set_seed(exp_args.seed)
 
-    ranker = SetwiseT5Ranker(ranker_args, method_args)
+    if exp_args.method == 'setwise':
+        if 't5' in ranker_args.model_name_or_path:
+            ranker = SetwiseT5Ranker(ranker_args, method_args)
+        else:
+            ranker = SetwiseLlmRanker(ranker_args, method_args)
+    elif exp_args.method == 'pairwise':
+        raise NotImplementedError('Pairwise ranking is not implemented yet.')
+    elif exp_args.method == 'pointwise':
+        raise NotImplementedError('Pointwise ranking is not implemented yet.')
+    elif exp_args.method == 'listwise':
+        raise NotImplementedError('Listwise ranking is not implemented yet.')
 
     query_map = {}
     topics = get_topics(exp_args.pyserini_topic)
@@ -136,7 +145,7 @@ def main():
         write_run_file(exp_args.save_path, [(qid, query, reranked)], 'LLMRankers')
     toc = time.time()
 
-    if ranker.verbose:
+    if ranker.verbose and total_ranked > 0:
         print(f'Avg comparisons: {total_comparisons/total_ranked}')
         print(f'Avg prompt tokens: {total_prompt_tokens/total_ranked}')
         print(f'Avg completion tokens: {total_completion_tokens/total_ranked}')

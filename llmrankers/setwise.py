@@ -4,7 +4,7 @@ from .arguments import SetwiseArguments, RankerArguments
 
 from .rankers import LlmRanker, SearchResult
 import re
-from transformers import T5ForConditionalGeneration
+from transformers import T5ForConditionalGeneration, AutoModelForCausalLM
 import torch
 import copy
 import logging
@@ -12,53 +12,78 @@ logger = logging.getLogger(__name__)
 
 
 class SetwiseLlmRanker(LlmRanker):
-
+    TRANSFORMER_CLS = AutoModelForCausalLM
     def __init__(self,
                  ranker_args: RankerArguments,
                  setwise_args: SetwiseArguments):
 
         super().__init__(ranker_args)
 
-
-
         self.num_child = setwise_args.num_child
         self.k = setwise_args.k
         self.sort = setwise_args.sort
-
-        # self.config = AutoConfig.from_pretrained(model_name_or_path, cache_dir=cache_dir)
-        # if self.config.model_type == 't5':
-        #     self.tokenizer = T5Tokenizer.from_pretrained(tokenizer_name_or_path
-        #                                                  if tokenizer_name_or_path is not None else
-        #                                                  model_name_or_path,
-        #                                                  cache_dir=cache_dir)
-        #     self.llm = T5ForConditionalGeneration.from_pretrained(model_name_or_path,
-        #                                                           device_map='auto',
-        #                                                           torch_dtype=dtype,
-        #                                                           cache_dir=cache_dir)
-        #     self.decoder_input_ids = self.tokenizer.encode("<pad> Passage",
-        #                                                    return_tensors="pt",
-        #                                                    add_special_tokens=False).to(self.device) if self.tokenizer else None
-        #
-        #     self.target_token_ids = self.tokenizer.batch_encode_plus([f'<pad> Passage {self.CHARACTERS[i]}'
-        #                                                               for i in range(len(self.CHARACTERS))],
-        #                                                              return_tensors="pt",
-        #                                                              add_special_tokens=False,
-        #                                                              padding=True).input_ids[:, -1]
-        # elif self.config.model_type == 'llama':
-        #     self.tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, cache_dir=cache_dir)
-        #     self.tokenizer.use_default_system_prompt = False
-        #     if 'vicuna' and 'v1.5' in model_name_or_path:
-        #         self.tokenizer.chat_template = "{% if messages[0]['role'] == 'system' %}{% set loop_messages = messages[1:] %}{% set system_message = messages[0]['content'] %}{% else %}{% set loop_messages = messages %}{% set system_message = 'A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user\\'s questions.' %}{% endif %}{% for message in loop_messages %}{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}{% endif %}{% if loop.index0 == 0 %}{{ system_message }}{% endif %}{% if message['role'] == 'user' %}{{ ' USER: ' + message['content'].strip() }}{% elif message['role'] == 'assistant' %}{{ ' ASSISTANT: ' + message['content'].strip() + eos_token }}{% endif %}{% endfor %}{% if add_generation_prompt %}{{ ' ASSISTANT:' }}{% endif %}"
-        #     self.llm = AutoModelForCausalLM.from_pretrained(model_name_or_path,
-        #                                                     device_map='auto',
-        #                                                     torch_dtype=dtype,
-        #                                                     cache_dir=cache_dir).eval()
-        # else:
-        #     raise NotImplementedError(f"Model type {self.config.model_type} is not supported yet for setwise:(")
-
+        if self.use_vllm:
+            from vllm import LLM, SamplingParams
+            from vllm.lora.request import LoRARequest
+            self.sampling_params = SamplingParams(temperature=0.0,
+                                                  max_tokens=2048)
+            if self.lora_path is not None:
+                self.lora_request = LoRARequest("R1adapter", 1, self.lora_path)
 
     def compare(self, query: str, docs: List[SearchResult]):
-        raise NotImplementedError
+        self.total_compare += 1
+        input_text = self.format_input_text(query=query, docs=docs)
+
+        if self.scoring == 'generation':
+            if self.use_vllm:
+                input_ids = self.tokenizer.encode(input_text, add_special_tokens=False)
+                self.total_prompt_tokens += len(input_ids)
+                output = self.model.generate(prompt_token_ids=input_ids,
+                                             sampling_params=self.sampling_params,
+                                             lora_request=self.lora_request
+                                             if self.lora_path is not None else None,
+                                             )
+                self.total_completion_tokens += len(output[0].outputs[0].token_ids)
+                output = output[0].outputs[0].text
+
+            else:
+                input_ids = self.tokenizer(input_text, return_tensors="pt", add_special_tokens=False).input_ids.to(
+                    self.model.device)
+                self.total_prompt_tokens += input_ids.shape[1]
+                output_ids = self.model.generate(input_ids,
+                                                 max_new_tokens=2048,
+                                                 do_sample=False,
+                                                 )[0]
+
+                output_ids = output_ids[input_ids.shape[1]:]
+                self.total_completion_tokens += output_ids.shape[0]
+
+                output = self.tokenizer.decode(output_ids,
+                                               skip_special_tokens=True).strip()
+
+            pattern = rf'{self.prompt["pattern"]}'
+            match = re.search(pattern, output, re.DOTALL)
+            if match:
+                result = match.group(1).strip()
+            else:
+                logger.warning(f"Pattern '{pattern}' not found in output '{output}'.")
+                result = self.labels[0]
+
+        elif self.scoring == 'likelihood':
+            raise NotImplementedError(f"Scoring method {self.scoring} is not implemented yet for setwise ranking.")
+
+        else:
+            raise NotImplementedError(f"Scoring method {self.scoring} is not implemented yet for setwise ranking.")
+
+        if self.verbose:
+            print('--------------------------------------')
+            print(f'query:\n"{query}"')
+            print(f'input_text:\n"{input_text}"')
+            print(f'completion:\n"{output}"')
+            print(f'match:\n"{result}"')
+            print('--------------------------------------')
+
+        return result
 
 
     def heapify(self, arr, n, i, query):
