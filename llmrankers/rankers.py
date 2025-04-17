@@ -30,6 +30,7 @@ class LlmRanker:
         cache_dir = args.cache_dir
         verbose = args.verbose
         scoring = args.scoring
+        seed = args.seed
 
         self.prompt = toml.load(prompt_file)
         self.max_query_length = max_query_length
@@ -66,6 +67,7 @@ class LlmRanker:
                              enable_lora=True if lora_name_or_path is not None else False,
                              max_lora_rank=32,
                              dtype=dtype,
+                             seed=seed,
                              tensor_parallel_size=num_gpus,
                            )
         else:

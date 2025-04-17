@@ -37,12 +37,6 @@ class ExperimentArguments:
         metadata={"help": "Shuffle the ranking."}
     )
 
-    seed: int = field(
-        default=42,
-        metadata={"help": "Random seed."}
-    )
-
-
 
 @dataclass
 class RankerArguments:
@@ -104,6 +98,12 @@ class RankerArguments:
         default=False,
         metadata={"help": "Verbose mode."}
     )
+
+    seed: int = field(
+        default=42,
+        metadata={"help": "Random seed."}
+    )
+
 
 
 @dataclass

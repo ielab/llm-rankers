@@ -71,8 +71,6 @@ def main():
     parser = HfArgumentParser(method_args_cls)
     method_args, = parser.parse_args_into_dataclasses(method_args)
 
-    set_seed(exp_args.seed)
-
     if exp_args.method == 'setwise':
         if 't5' in ranker_args.model_name_or_path:
             ranker = SetwiseT5Ranker(ranker_args, method_args)
@@ -121,6 +119,7 @@ def main():
         for qid, _, _ in reranked_rankings:
             ranked_qids.add(qid)
 
+    set_seed(ranker_args.seed)
     total_ranked = 0
     total_comparisons = 0
     total_prompt_tokens = 0
@@ -145,7 +144,7 @@ def main():
         write_run_file(exp_args.save_path, [(qid, query, reranked)], 'LLMRankers')
     toc = time.time()
 
-    if ranker.verbose and total_ranked > 0:
+    if total_ranked > 0:
         print(f'Avg comparisons: {total_comparisons/total_ranked}')
         print(f'Avg prompt tokens: {total_prompt_tokens/total_ranked}')
         print(f'Avg completion tokens: {total_completion_tokens/total_ranked}')

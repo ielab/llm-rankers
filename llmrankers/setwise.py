@@ -1,5 +1,5 @@
 from typing import List
-
+import random
 from .arguments import SetwiseArguments, RankerArguments
 
 from .rankers import LlmRanker, SearchResult
@@ -23,7 +23,7 @@ class SetwiseLlmRanker(LlmRanker):
         self.k = setwise_args.k
         self.sort = setwise_args.sort
         if self.use_vllm:
-            from vllm import LLM, SamplingParams
+            from vllm import SamplingParams
             from vllm.lora.request import LoRARequest
             self.sampling_params = SamplingParams(temperature=0.0,
                                                   max_tokens=2048)
@@ -32,23 +32,29 @@ class SetwiseLlmRanker(LlmRanker):
 
     def compare(self, query: str, docs: List[SearchResult]):
         self.total_compare += 1
-        input_text = self.format_input_text(query=query, docs=docs)
+
+        id_passage = [(i, p) for i, p in zip(self.labels, docs)]
+        id_passage = random.sample(id_passage, len(id_passage)) # shuffle the label-passage pairs
+        ids = [i for i, p in id_passage]
+        input_text = self.format_input_text(query=query, docs=[p for i, p in id_passage])
 
         if self.scoring == 'generation':
             if self.use_vllm:
                 input_ids = self.tokenizer.encode(input_text, add_special_tokens=False)
                 self.total_prompt_tokens += len(input_ids)
-                output = self.model.generate(prompt_token_ids=input_ids,
-                                             sampling_params=self.sampling_params,
-                                             lora_request=self.lora_request
-                                             if self.lora_path is not None else None,
-                                             )
+                output = self.model.generate(
+                    prompt_token_ids=input_ids,
+                    sampling_params=self.sampling_params,
+                    use_tqdm=False,
+                    lora_request=self.lora_request if self.lora_path is not None else None,
+                )
                 self.total_completion_tokens += len(output[0].outputs[0].token_ids)
                 output = output[0].outputs[0].text
 
             else:
-                input_ids = self.tokenizer(input_text, return_tensors="pt", add_special_tokens=False).input_ids.to(
-                    self.model.device)
+                input_ids = self.tokenizer(input_text,
+                                           return_tensors="pt",
+                                           add_special_tokens=False).input_ids.to(self.model.device)
                 self.total_prompt_tokens += input_ids.shape[1]
                 output_ids = self.model.generate(input_ids,
                                                  max_new_tokens=2048,
@@ -83,6 +89,7 @@ class SetwiseLlmRanker(LlmRanker):
             print(f'match:\n"{result}"')
             print('--------------------------------------')
 
+        result = ids[self.labels.index(result)] # return the real label (before shuffle)
         return result
 
 
