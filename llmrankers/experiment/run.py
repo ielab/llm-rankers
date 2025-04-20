@@ -3,7 +3,7 @@ import logging
 from pyserini.search.lucene import LuceneSearcher
 from pyserini.search._base import get_topics
 from llmrankers import SearchResult
-from llmrankers import SetwiseLlmRanker, SetwiseT5Ranker
+from llmrankers import SetwiseLlmRanker, SetwiseT5Ranker, ListwiseLlmRanker
 from llmrankers.arguments import (
 ExperimentArguments, RankerArguments, SetwiseArguments,
 PairwiseArguments, PointwiseArguments, ListwiseArguments)
@@ -21,7 +21,7 @@ def load_run_file(path, query_map, docstore, hits):
     with open(path, 'r') as f:
         current_qid = None
         current_ranking = []
-        for line in tqdm(f):
+        for line in tqdm(f, desc='Loading run file'):
             qid, _, docid, _, score, _ = line.strip().split()
             if qid not in query_map:
                 continue
@@ -81,7 +81,7 @@ def main():
     elif exp_args.method == 'pointwise':
         raise NotImplementedError('Pointwise ranking is not implemented yet.')
     elif exp_args.method == 'listwise':
-        raise NotImplementedError('Listwise ranking is not implemented yet.')
+        ranker = ListwiseLlmRanker(ranker_args, method_args)
 
     query_map = {}
     topics = get_topics(exp_args.pyserini_topic)
@@ -126,7 +126,7 @@ def main():
     total_completion_tokens = 0
 
     tic = time.time()
-    for qid, query, ranking in tqdm(first_stage_rankings):
+    for qid, query, ranking in tqdm(first_stage_rankings, desc='Ranking'):
         if qid in ranked_qids:
             continue
         if exp_args.shuffle_ranking is not None:

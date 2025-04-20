@@ -22,13 +22,7 @@ class SetwiseLlmRanker(LlmRanker):
         self.num_child = setwise_args.num_child
         self.k = setwise_args.k
         self.sort = setwise_args.sort
-        if self.use_vllm:
-            from vllm import SamplingParams
-            from vllm.lora.request import LoRARequest
-            self.sampling_params = SamplingParams(temperature=0.0,
-                                                  max_tokens=2048)
-            if self.lora_path is not None:
-                self.lora_request = LoRARequest("R1adapter", 1, self.lora_path)
+
 
     def compare(self, query: str, docs: List[SearchResult]):
         self.total_compare += 1
@@ -46,7 +40,7 @@ class SetwiseLlmRanker(LlmRanker):
                     prompt_token_ids=input_ids,
                     sampling_params=self.sampling_params,
                     use_tqdm=False,
-                    lora_request=self.lora_request if self.lora_path is not None else None,
+                    lora_request=self.lora_request if self.lora_name_or_path is not None else None,
                 )
                 self.total_completion_tokens += len(output[0].outputs[0].token_ids)
                 output = output[0].outputs[0].text
@@ -205,11 +199,11 @@ class SetwiseLlmRanker(LlmRanker):
 
         for i, doc in enumerate(ranking[:self.k]):
             top_doc_ids.add(doc.docid)
-            results.append(SearchResult(docid=doc.docid, score=-rank, text=None))
+            results.append(SearchResult(docid=doc.docid, score=-rank, text=''))
             rank += 1
         for doc in original_ranking:
             if doc.docid not in top_doc_ids:
-                results.append(SearchResult(docid=doc.docid, score=-rank, text=None))
+                results.append(SearchResult(docid=doc.docid, score=-rank, text=''))
                 rank += 1
 
         return results
@@ -238,11 +232,20 @@ class SetwiseT5Ranker(SetwiseLlmRanker):
 
 
     def format_input_text(self, query: str, docs: List[SearchResult]) -> str:
+        if 'num_docs' in self.prompt:
+            if self.prompt['num_docs'] != 'adaptive':
+                num_docs = self.prompt['num_docs']
+            else:
+                num_docs = len(docs)
+        else:
+            num_docs = len(docs)
+
         docs = self.prompt['doc_separator'].join(
             [f'{self.prompt["doc_prefix"].format(label=self.labels[i])}{docs[i].text}' for i in range(len(docs))]
         )
         input_text = self.prompt['user'].format(query=query,
-                                                docs=docs)
+                                                docs=docs,
+                                                num_docs=num_docs)
         return input_text
 
 

@@ -46,6 +46,8 @@ class LlmRanker:
 
         if use_vllm:
             from vllm import LLM
+            from vllm import SamplingParams
+            from vllm.lora.request import LoRARequest
             from huggingface_hub import snapshot_download
             os.environ['VLLM_WORKER_MULTIPROC_METHOD'] = 'spawn'
             if lora_name_or_path is not None:
@@ -58,7 +60,11 @@ class LlmRanker:
             else:
                 lora_path = None
 
-            self.lora_path = lora_path
+            self.sampling_params = SamplingParams(temperature=0.0,
+                                                  max_tokens=2048)
+            if lora_path is not None:
+                self.lora_request = LoRARequest("adapter", 1, lora_path)
+
             # get num of available GPUs
             num_gpus = torch.cuda.device_count()
 
@@ -90,11 +96,20 @@ class LlmRanker:
 
 
     def format_input_text(self, query: str, docs: List[SearchResult]) -> str:
+        if 'num_docs' in self.prompt:
+            if self.prompt['num_docs'] != 'adaptive':
+                num_docs = self.prompt['num_docs']
+            else:
+                num_docs = len(docs)
+        else:
+            num_docs = len(docs)
+
         docs = self.prompt['doc_separator'].join(
             [f'{self.prompt["doc_prefix"].format(label=self.labels[i])}{docs[i].text}' for i in range(len(docs))]
         )
         user_message = self.prompt['user'].format(query=query,
-                                                  docs=docs)
+                                                  docs=docs,
+                                                  num_docs=num_docs)
         if self.apply_chat_template:
             message = []
             if 'system' in self.prompt:
