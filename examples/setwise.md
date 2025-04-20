@@ -77,7 +77,7 @@ python3 -m llmrankers.experiment.run \
     --cache_dir cache \
     --verbose False \
     --scoring generation \
-    --method setwise \ 
+    --method setwise \
     --num_child 19 \
     --sort heapsort \
     --k 10
