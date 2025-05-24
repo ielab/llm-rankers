@@ -1,11 +1,11 @@
-# llm-rankers
+# llm-rankers V2
 Pointwise, Listwise, Pairwise and [Setwise](https://arxiv.org/pdf/2310.09497.pdf) Document Ranking with Large Language Models.
-> Our Setwise paper has been accepted at SIGIR2024!
+> Our Setwise paper uses [v1](https://github.com/ielab/llm-rankers/tree/v1) branch of this repo.
 
 ---
 ## News
 - **2025-03-08**: We introduce *Rank-R1* a new setwise reranker with reasoning ability! Check out the [Rank-R1](Rank-R1) folder and [paper](https://arxiv.org/abs/2503.06034) for more details.
-
+- **2024-03-26**: Our Setwise paper has been accepted at SIGIR2024!
 ---
 ## Installation
 Install via PyP
@@ -16,7 +16,7 @@ Or typically for development and research, clone this repo and install as editab
 ```bash
 git clone https://github.com/ielab/llm-rankers.git
 cd llm-rankers
-pip install transformers datasets peft accelerate toml
+pip install transformers datasets peft accelerate toml vllm
 pip install -e .
 ```
 
@@ -25,17 +25,6 @@ For running TREC and BEIR experiments, install [Pyserini](https://github.com/cas
 pip install pyserini
 ```
 
-The code is tested with the following dependencies:
-```bash
-torch==2.0.1
-transformers==4.31.0
-pyserini==0.21.0
-ir-datasets==0.5.5
-openai==0.27.10
-tiktoken==0.4.0
-accelerate==0.22.0 
-```
-> Note the code base is tested with python=3.9 conda environment. You may also need to install some pyserini dependencies such as faiss. We refer to pyserini installation doc [link](https://github.com/castorini/pyserini/blob/master/docs/installation.md#development-installation)
 
 ---
 
