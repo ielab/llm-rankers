@@ -1,0 +1,31 @@
+prompt_system = "You are RankLLM, an intelligent assistant capable of evaluating the relevancy of passages to a given query."
+
+prompt_user = '''You will be presented with a query, and a set of documents.
+
+Your task consists of the following step:
+
+1. Analyze the query: Carefully read the query and identify the core problem or question being asked.
+
+2. Analyze the documents: Thoroughly examine each document and briefly explain how each document is relevant or not relevant to the query.
+
+3. Find the most relevant document: Based on your analysis, select the most relevant document to the query from the set and briefly explain why.
+
+Important: Provide your analysis within the <think> </think> tags and answer only the label of the most relevant document, enclosed in square brackets, within the <answer> </answer> tags. For example, if the third document is the most relevant, your response should be:
+<think> Your analysis here </think>
+<answer>[3]</answer>
+
+Here is the query: {query}
+
+Here are the documents:
+{docs}'''
+
+
+doc_separator = "\n\n"
+
+doc_prefix = "[{num}]: "
+
+ground_truth = "[{num}]"
+
+pattern = '<think>.*?</think>\s*<answer>(.*?)</answer>'
+
+

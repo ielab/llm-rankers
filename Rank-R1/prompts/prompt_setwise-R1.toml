@@ -5,3 +5,7 @@ prompt_user = '''Given the query: "{query}", which of the following documents is
 After completing the reasoning process, please provide only the label of the most relevant document to the query, enclosed in square brackets, within the answer tags. For example, if the third document is the most relevant, the answer should be: <think> reasoning process here </think> <answer>[3]</answer>.'''
 
 pattern = '<think>.*?</think>\s*<answer>(.*?)</answer>'
+
+doc_separator = "\n"
+
+doc_prefix = "[{num}]: "

@@ -18,6 +18,7 @@ from vllm.lora.request import LoRARequest
 import re
 from collections import Counter
 from huggingface_hub import snapshot_download
+import numpy as np
 import os
 
 random.seed(929)
@@ -86,6 +87,11 @@ def write_run_file(path, results, tag):
                 rank += 1
 
 
+def split_into_shards(data, num_shards):
+    k, m = divmod(len(data), num_shards)
+    return [data[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(num_shards)]
+
+
 class R1SetwiseLlmRanker(SetwiseLlmRanker):
     CHARACTERS = [f'[{i+1}]' for i in range(20)]
 
@@ -99,7 +105,8 @@ class R1SetwiseLlmRanker(SetwiseLlmRanker):
                  scoring='generation',
                  method="heapsort",
                  num_permutation=1,
-                 cache_dir=None):
+                 cache_dir=None,
+                 tensor_parallel_size=1):
 
         self.prompt = prompt
         self.lora_path = lora_path
@@ -107,7 +114,7 @@ class R1SetwiseLlmRanker(SetwiseLlmRanker):
         self.num_permutation = num_permutation
         self.k = k
         self.sampling_params = SamplingParams(temperature=0.0,
-                                              max_tokens=2048)
+                                              max_tokens=8000)
         if tokenizer_name_or_path is None:
             tokenizer_name_or_path = model_name_or_path
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name_or_path, cache_dir=cache_dir)
@@ -115,6 +122,7 @@ class R1SetwiseLlmRanker(SetwiseLlmRanker):
                        tokenizer=tokenizer_name_or_path,
                        enable_lora=True if lora_path is not None else False,
                        max_lora_rank=32,
+                       tensor_parallel_size=tensor_parallel_size
                        )
 
         self.scoring = scoring
@@ -144,10 +152,14 @@ class R1SetwiseLlmRanker(SetwiseLlmRanker):
                 passages.append(p[1].text)
                 characters.append(c)
             batch_ref.append((ref, characters))
-            passages = "\n".join([f'{characters[i]} {passages[i]}' for i in range(len(passages))])
+            # passages = "\n".join([f'{characters[i]} {passages[i]}' for i in range(len(passages))])
+            
+            passages = [f"{self.prompt['doc_prefix'].format(num=i + 1)}{doc}" for i, doc in enumerate(passages)]
+            passages_text = self.prompt['doc_separator'].join(passages)
+
             system_message = self.prompt["prompt_system"]
             user_message = self.prompt['prompt_user'].format(query=query,
-                                                             docs=passages)
+                                                             docs=passages_text)
             input_text.append([
                 {'role': "system", 'content': system_message},
                 {'role': "user", 'content': user_message}
@@ -160,6 +172,10 @@ class R1SetwiseLlmRanker(SetwiseLlmRanker):
                                                          self.lora_path)
                                 if self.lora_path is not None else None,
                                 )
+        print('------------------------------')
+        print(input_text[0])
+        print(outputs[0].outputs[0].text)
+        print('------------------------------')
         results = []
         for output, input in zip(outputs, input_text):
             self.total_completion_tokens += len(output.outputs[0].token_ids)
@@ -224,14 +240,25 @@ def main(args):
                                 num_child=args.setwise.num_child,
                                 method=args.setwise.method,
                                 k=args.setwise.k,
-                                prompt=prompt)
+                                prompt=prompt,
+                                tensor_parallel_size= args.run.tensor_parallel_size)
 
     query_map = {}
     if args.run.query_file is not None:
-        with open(args.run.query_file, 'r') as f:
-            for line in f:
-                qid, query = line.strip().split('\t')
-                query_map[qid] = ranker.truncate(query, args.run.query_length)
+        if args.run.query_file.endswith('.tsv'):
+            with open(args.run.query_file, 'r') as f:
+                for line in f:
+                    qid, query = line.strip().split('\t')
+                    query_map[qid] = ranker.truncate(query, args.run.query_length)
+        elif args.run.query_file.endswith('.jsonl'):
+            with open(args.run.query_file, 'r') as f:
+                for line in f:
+                    data = json.loads(line.strip())
+                    qid = data['id']
+                    query = data['query']
+                    query_map[qid] = ranker.truncate(query, args.run.query_length)
+        else:
+            raise ValueError('query_file must be a tsv or jsonl file.')
     elif args.run.pyserini_dataset is not None:
         topics = get_topics(args.run.pyserini_dataset)
         for topic_id in list(topics.keys()):
@@ -248,7 +275,12 @@ def main(args):
         docstore = LuceneSearcher.from_prebuilt_index(args.run.pyserini_index)
     first_stage_rankings = load_run_file(args.run.run_path, query_map, ranker, docstore,
                                          args.run.hits, args.run.passage_length)
-
+    
+    # sharding
+    if args.run.dataset_number_of_shards > 1:
+        shards = split_into_shards(first_stage_rankings, args.run.dataset_number_of_shards)
+        first_stage_rankings = shards[args.run.dataset_shard_index]
+        
     # if save_path file exists, load it
     ranked_qids = set()
     if os.path.exists(args.run.save_path):
@@ -257,6 +289,8 @@ def main(args):
                                           args.run.hits, args.run.passage_length)
         for qid, _, _ in reranked_rankings:
             ranked_qids.add(qid)
+
+        
 
     total_ranked = 0
     total_comparisons = 0
@@ -320,13 +354,17 @@ if __name__ == '__main__':
     run_parser.add_argument('--openai_key', type=str, default=None)
     run_parser.add_argument('--scoring', type=str, default='generation', choices=['generation', 'likelihood'])
     run_parser.add_argument('--shuffle_ranking', type=str, default=None, choices=['inverse', 'random'])
+    run_parser.add_argument('--dataset_number_of_shards', type=int, default=1)
+    run_parser.add_argument('--dataset_shard_index', type=int, default=0)
+    run_parser.add_argument('--tensor_parallel_size', type=int, default=1,
+                            help='Tensor parallel size for LLM. Default is 1 for single GPU.')
+    
     setwise_parser = commands.add_parser('setwise')
     setwise_parser.add_argument('--num_child', type=int, default=3)
     setwise_parser.add_argument('--method', type=str, default='heapsort',
                                 choices=['heapsort', 'bubblesort'])
     setwise_parser.add_argument('--k', type=int, default=10)
     setwise_parser.add_argument('--num_permutation', type=int, default=1)
-
     args = parse_args(parser, commands)
     main(args)
 
