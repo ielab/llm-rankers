@@ -1,9 +1,5 @@
 # Rank-R1: Enhancing Reasoning in LLM-based Document Rerankers via Reinforcement Learning
 
-In this work, we introduce Rank-R1, a Setwise reranker with reasoning abilities. 
-We trained Rank-R1 on the MSMARCO dataset using the GRPO RL algorithm. 
-Check out the [paper](https://arxiv.org/abs/2503.06034) for more details.
-
 ---
 ## Installation
 For training and inference Rank-R1, first follow the README.md in the root directory to install llm-rankers. Then
@@ -94,16 +90,7 @@ answer = re.search(pattern, response, re.DOTALL).group(1) # answer = '[6]'
 ```
 > Note that our Rank-R1 Setwise rerankers are trained with the prompt format shown above, which includes 20 documents. Other numbers of documents should also work fine, but this would represent a "zero-shot" setting for the model.
 ---
-### Released Models (LoRA adapters)
-| Resource                                                                       | Description                       |
-|:-------------------------------------------------------------------------------|:----------------------------------|
-| [Rank-R1-3B-v0.1](https://huggingface.co/ielabgroup/Rank-R1-3B-v0.1)           | Trained from Qwen2.5-3B-Instruct  |
-| [Rank-R1-7B-v0.1](https://huggingface.co/ielabgroup/Rank-R1-7B-v0.1)           | Trained from Qwen2.5-7B-Instruct  |
-| [Rank-R1-14B-v0.1](https://huggingface.co/ielabgroup/Rank-R1-14B-v0.1)         | Trained from Qwen2.5-14B-Instruct |
-| [Setwise-SFT-3B-v0.1](https://huggingface.co/ielabgroup/Setwise-SFT-3B-v0.1)   | Trained from Qwen2.5-3B-Instruct  |
-| [Setwise-SFT-7B-v0.1](https://huggingface.co/ielabgroup/Setwise-SFT-7B-v0.1)   | Trained from Qwen2.5-7B-Instruct  |
-| [Setwise-SFT-14B-v0.1](https://huggingface.co/ielabgroup/Setwise-SFT-14B-v0.1) | Trained from Qwen2.5-14B-Instruct |
----
+
 ### TREC DL examples:
 <details>
 <summary>Rank-R1</summary>
@@ -327,18 +314,3 @@ deepspeed --include localhost:0,1,2,3 --master_port 60000 train_sft.py
 ```
 </details>
 
-
----
-## Citation
-
-```bibtex
-@misc{zhuang2025rankr1enhancingreasoningllmbased,
-      title={Rank-R1: Enhancing Reasoning in LLM-based Document Rerankers via Reinforcement Learning}, 
-      author={Shengyao Zhuang and Xueguang Ma and Bevan Koopman and Jimmy Lin and Guido Zuccon},
-      year={2025},
-      eprint={2503.06034},
-      archivePrefix={arXiv},
-      primaryClass={cs.IR},
-      url={https://arxiv.org/abs/2503.06034}, 
-}
-```
