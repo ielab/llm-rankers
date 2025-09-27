@@ -21,7 +21,7 @@ query = 'Give me passage 6'
 
 ranker = RankR1SetwiseLlmRanker(
     model_name_or_path='Qwen/Qwen2.5-7B-Instruct',
-    lora_name_or_path='ielabgroup/Rank-R1-7B-v0.1',
+    lora_name_or_path='xxx/Rank-R1-7B-v0.1',
     prompt_file='prompts/prompt_setwise-R1.toml',
     num_child=19,
     k=1,
@@ -45,7 +45,7 @@ def get_model(peft_model_name):
 
 # Load the tokenizer and model
 tokenizer = AutoTokenizer.from_pretrained('Qwen/Qwen2.5-7B-Instruct')
-model = get_model('ielabgroup/Rank-R1-7B-v0.1').to('cuda:0').eval()
+model = get_model('xxx/Rank-R1-7B-v0.1').to('cuda:0').eval()
 
 prompt_system = "A conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant first thinks about the reasoning process in the mind and then provides the user with the answer. The reasoning process and answer are enclosed within <think> </think> and <answer> </answer> tags, respectively, i.e., <think> reasoning process here </think> <answer> answer here </answer>."
 prompt_user = '''Given the query: "{query}", which of the following documents is most relevant?
@@ -100,7 +100,7 @@ answer = re.search(pattern, response, re.DOTALL).group(1) # answer = '[6]'
 for dataset in dl19 dl20; do
   for size in 3 7 14; do
     model_name_or_path=Qwen/Qwen2.5-${size}B-Instruct
-    lora_path=ielabgroup/Rank-R1-${size}B-v0.1
+    lora_path=xxx/Rank-R1-${size}B-v0.1
     mkdir -p runs/${lora_path}
     
     CUDA_VISIBLE_DEVICES=0 python3 run_setwise.py \
@@ -165,7 +165,7 @@ done
 for dataset in dl19 dl20; do
   for size in 3 7 14; do
     model_name_or_path=Qwen/Qwen2.5-${size}B-Instruct
-    lora_path=ielabgroup/Setwise-SFT-${size}B-v0.1
+    lora_path=xxx/Setwise-SFT-${size}B-v0.1
     
     mkdir -p runs/${lora_path}
     
@@ -261,7 +261,7 @@ Then similar to TREC DL exmaples, you can run the following commands to evaluate
 ```bash
 for size in 3 7 14; do
     model_name_or_path=Qwen/Qwen2.5-${size}B-Instruct
-    lora_path=ielabgroup/Rank-R1-${size}B-v0.1
+    lora_path=xxx/Rank-R1-${size}B-v0.1
     
     for dataset in biology earth_science economics psychology robotics stackoverflow sustainable_living pony leetcode aops theoremqa_theorems theoremqa_questions; do
         CUDA_VISIBLE_DEVICES=0 python3 run_setwise.py \
