@@ -1,10 +1,5 @@
 # llm-rankers
-Pointwise, Listwise, Pairwise and [Setwise](https://arxiv.org/pdf/2310.09497.pdf) Document Ranking with Large Language Models.
-> Our Setwise paper has been accepted at SIGIR2024!
-
----
-## News
-- **2025-03-08**: We introduce *Rank-R1* a new setwise reranker with reasoning ability! Check out the [Rank-R1](Rank-R1) folder and [paper](https://arxiv.org/abs/2503.06034) for more details.
+See Rank-R1 folder.
 
 ---
 ## Installation
@@ -356,29 +351,3 @@ ndcg_cut_10             all     0.7675
 
 > Note: If you remove CUDA_VISIBLE_DEVICES=0, our code should automatically perform multi-GPU inference, but we may observe slight changes in the NDCG@10 scores
 
----
-
-## 🫡 References
-[1] Devendra Sachan, Mike Lewis, Mandar Joshi, Armen Aghajanyan, Wen-tau Yih, Joelle Pineau, and Luke Zettlemoyer, *Improving Passage Retrieval with Zero-Shot Question Generation*, EMNLP 2022
-
-[2] Weiwei Sun,Lingyong Yan,Xinyu Ma,Pengjie Ren,Dawei Yin,and Zhaochun Ren, Is ChatGPT Good at Search? *Investigating Large Language Models as Re-Ranking Agents*, EMNLP 2023
-
-[3] Shengyao Zhuang, Honglei Zhuang, Bevan Koopman, and Guido Zuccon, *A Setwise Approach for Effective and Highly Efficient Zero-shot Ranking with Large Language Models*, SIGIR 2024
-
-[4] Zhen Qin, Rolf Jagerman, Kai Hui, Honglei Zhuang, Junru Wu, Jiaming Shen, Tianqi Liu, Jialu Liu, Donald Metzler, Xuanhui Wang, and Michael Bendersky, *Large Language Models are Effective Text Rankers with Pairwise Ranking Prompting*, Findings: NAACL 2024
-
-
-
----
-## 🙏 Citation
-
-```bibtex
-@inproceedings{zhuang2024setwise,
-    author={Zhuang, Shengyao and Zhuang, Honglei and Koopman, Bevan and Zuccon, Guido},
-    title={A Setwise Approach for Effective and Highly Efficient Zero-shot Ranking with Large Language Models},
-    booktitle = {Proceedings of the 47th International ACM SIGIR Conference on Research and Development in Information Retrieval},
-    year = {2024},
-    series = {SIGIR '24}
-}
-
-```
