@@ -1,5 +1,27 @@
-# llm-rankers
-See Rank-R1 folder.
+# Rank-R1
+Rank-R1 code see Rank-R1 folder.
+
+## Effect of quantity of training data
+![Effect of training data](./figures/3B_vs_7B.png)
+
+The results in Table1 for Rank-R1 trained with GRPO are obtained when using only 18\% of the MSMARCO training data (while SFT used all available training data). To explore whether longer training could further improve effectiveness, we continued training the 3B and 7B Rank-R1 models for an additional two days and evaluated checkpoints saved during training. We report the results in above figure. In the figure, we also include results obtained when using SFT on incremental parts of the training data. 
+
+From the figure, we observe that Rank-R1 requires significantly less data than Setwise SFT to achieve the same level of performance at early training stage -- however this data efficiency effect vanishes early on during the training phase. Passed 5-7\% of training data, in fact, the two training approaches tend to track each other. SFT has a clear advantage over GRPO in that it is by far less computationally expensive. On the other hand, GRPO adds new features to the reranker, introducing the ability to perform reasoning.
+
+
+## Reward score v.s. Response length
+<p align="center">
+  <img src="./figures/train_length.png" width="45%" />
+  <img src="./figures/train_reward.png" width="45%" />
+</p>
+
+In above figure, we present the received reward values and model completion lengths logged during training for Rank-R1, across different model sizes. Rewards consistently increase throughout training, with smaller models showing a higher rate of increase, while larger models start with a higher initial reward.
+
+Regarding completion length, larger models tend to generate longer responses; however, we do not observe a noticeable increase in length as training proceeds. This observation differs from the findings for DeepSeek-R1. This may be attributed to two factors. First, we initialize RL training from an instruction-tuned model rather than a base model, meaning the instruction model already follows a reasonable reasoning process. Second, the MSMARCO passage ranking dataset is relatively simple compared to tasks like math or coding, where a longer reasoning process is more essential. Thus, extensive reasoning may not be necessary for achieving high effectiveness in this task.
+
+## Case study
+![case](./figures/case.png)
+In above figure, we provide an example of Rank-R1's generation. We compare the outputs of the Zeroshot model and the model after GPRO training. Both models successfully follow the instruction by providing a reasoning process within the <think> span and predicting a relevant document label in the correct format. However, the Zeroshot model tends to merely describe what each document mentions and ultimately makes an incorrect prediction. In contrast, the GPRO-trained model focuses on the most relevant documents, compares them, and correctly selects the best one. In addition, we argue that Rank-R1's transparent reasoning process makes its predictions more explainable, which could be particularly important in domains such as medical document ranking.
 
 ---
 ## Installation
