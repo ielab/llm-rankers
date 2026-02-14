@@ -10,10 +10,8 @@ From the figure, we observe that Rank-R1 requires significantly less data than S
 
 
 ## Reward score v.s. Response length
-<p align="center">
-  <img src="./figures/train_length.png" width="45%" />
-  <img src="./figures/train_reward.png" width="45%" />
-</p>
+![train_length](./figures/train_length.png)
+![train_reward](./figures/train_reward.png)
 
 In above figure, we present the received reward values and model completion lengths logged during training for Rank-R1, across different model sizes. Rewards consistently increase throughout training, with smaller models showing a higher rate of increase, while larger models start with a higher initial reward.
 
@@ -21,6 +19,7 @@ Regarding completion length, larger models tend to generate longer responses; ho
 
 ## Case study
 ![case](./figures/case.png)
+
 In above figure, we provide an example of Rank-R1's generation. We compare the outputs of the Zeroshot model and the model after GPRO training. Both models successfully follow the instruction by providing a reasoning process within the <think> span and predicting a relevant document label in the correct format. However, the Zeroshot model tends to merely describe what each document mentions and ultimately makes an incorrect prediction. In contrast, the GPRO-trained model focuses on the most relevant documents, compares them, and correctly selects the best one. In addition, we argue that Rank-R1's transparent reasoning process makes its predictions more explainable, which could be particularly important in domains such as medical document ranking.
 
 ---
