@@ -241,27 +241,41 @@ class SetwiseLlmRanker(LlmRanker):
             self.heapSort(ranking, query, self.k)
             ranking = list(reversed(ranking))
         elif self.method == "bubblesort":
-            last_start = len(ranking) - (self.num_child + 1)
+            n = len(ranking)
+            k = min(self.k, n)
+            last_start = n - (self.num_child + 1)
 
-            for i in range(self.k):
+            for i in range(k):
+                # Windows below `last_start` are known to be unchanged, but their top documents may already have
+                # been ranked by earlier passes: re-include them so that no candidate is skipped.
+                last_start = min(last_start, n - (self.num_child + 1))
+                while last_start + self.num_child < i:
+                    last_start += self.num_child
                 start_ind = last_start
                 end_ind = last_start + (self.num_child + 1)
                 is_change = False
                 while True:
                     if start_ind < i:
                         start_ind = i
-                    output = self.compare(query, ranking[start_ind:end_ind])
-                    try:
-                        best_ind = self.CHARACTERS.index(output)
-                    except ValueError:
-                        best_ind = 0
+                    window = ranking[start_ind:end_ind]
+                    best_ind = 0
+                    if len(window) > 1:  # a window of one document needs no comparison
+                        output = self.compare(query, window)
+                        try:
+                            best_ind = self.CHARACTERS.index(output)
+                        except ValueError:
+                            best_ind = 0
+                        if best_ind >= len(window):  # label outside of the window
+                            best_ind = 0
                     if best_ind != 0:
                         ranking[start_ind], ranking[start_ind + best_ind] = ranking[start_ind + best_ind], ranking[start_ind]
                         if not is_change:
                             is_change = True
-                            if last_start != len(ranking) - (self.num_child + 1) \
-                                    and best_ind == len(ranking[start_ind:end_ind])-1:
-                                last_start += len(ranking[start_ind:end_ind])-1
+                            # The best document was the top of the window below; that window's top has changed,
+                            # so it has to be examined again in the next pass (align to end_ind - 1, which is also
+                            # right when the current window is truncated at position i).
+                            if best_ind == len(window) - 1 and end_ind < n:
+                                last_start = end_ind - 1
 
                     if start_ind == i:
                         break

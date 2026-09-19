@@ -1,0 +1,5 @@
+requests
+tiktoken
+ir_datasets
+ir_measures
+tqdm

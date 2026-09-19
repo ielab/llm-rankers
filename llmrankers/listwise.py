@@ -183,13 +183,17 @@ class OpenAiListwiseLlmRanker(LlmRanker):
         for _ in range(self.num_repeat):
             ranking = copy.deepcopy(ranking)
             end_pos = len(ranking)
-            start_pos = end_pos - self.window_size
-            while start_pos >= 0:
-                start_pos = max(start_pos, 0)
+            start_pos = max(end_pos - self.window_size, 0)
+            while True:
                 result = self.compare(query, ranking[start_pos: end_pos])
                 ranking = receive_permutation(ranking, result, start_pos, end_pos)
+                if start_pos == 0:
+                    break
                 end_pos = end_pos - self.step_size
                 start_pos = start_pos - self.step_size
+                if start_pos < 0:  # always finish with the window at the top of the list
+                    start_pos = 0
+                    end_pos = min(self.window_size, len(ranking))
 
         for i, doc in enumerate(ranking):
             doc.score = -i
