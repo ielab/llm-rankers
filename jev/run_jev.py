@@ -169,7 +169,7 @@ if __name__ == '__main__':
     run.add_argument('--max_rps', type=float, default=20.0, help='global requests/second cap (0 = none)')
     run.add_argument('--max_queries', type=int, default=None, help='only re-rank the first N queries')
     run.add_argument('--verbose', action='store_true')
-    commands.add_parser('pointwise').add_argument('--method', default='noul', choices=['noul', 'score'])
+    commands.add_parser('pointwise').add_argument('--method', default='noul', choices=['noul', 'score', 'cookbook'])
     commands.add_parser('pairwise').add_argument('--k', type=int, default=10)
     setwise = commands.add_parser('setwise')
     setwise.add_argument('--num_child', type=int, default=10)

@@ -352,15 +352,29 @@ def _passages_state(query, docs, labels):
 
 class JevPointwiseLlmRanker(JevRanker):
     """One request per (query, passage), sent concurrently.
-    method='noul': P("the passage answers the query"); method='score': expected TREC graded level (0-3)."""
+    method='noul':     P("the passage answers the query")
+    method='score':    expected TREC graded level (0-3)
+    method='cookbook': the noul of TypeSafe's re-ranking cookbook (docs.typesafe.ai/cookbooks/rerank_typesafe),
+                       adapted from legal citations to web search: state keys `query` / `candidate_passage`, the
+                       question phrased with its context, criteria contrasting a specific answer with a similar topic."""
 
     def __init__(self, client, method='noul', num_workers=4):
         super().__init__(client, num_workers)
-        if method not in ('noul', 'score'):
-            raise ValueError("method must be 'noul' or 'score'")
+        if method not in ('noul', 'score', 'cookbook'):
+            raise ValueError("method must be 'noul', 'score' or 'cookbook'")
         self.method = method
 
     def _score_one(self, query, doc):
+        if self.method == 'cookbook':
+            state = {'query': query, 'candidate_passage': doc.text}
+            qs = {'relevant': noul(
+                'The query is a web search query typed by a user looking for a specific piece of information. '
+                'Could the candidate passage be the passage a search engine should return for it - does it provide '
+                'the specific information the query asks for?',
+                true='The candidate passage states or explains the specific fact, answer or procedure the query asks for.',
+                false='The candidate passage is merely on a similar topic; it does not supply the specific '
+                      'information the query asks for.')}
+            return self.client.system_one(state, qs)['answers']['relevant']['noul']
         state = {'query': query, 'passage': doc.text}
         if self.method == 'noul':
             qs = {'relevant': noul('The passage answers the query.',

@@ -53,6 +53,12 @@ cost is the list price of the input tokens per query.
 * **Pointwise `score` (100 requests) is close to listwise `score` (9 requests)**: seeing the other candidates in the
   same request adds little; the graded rubric (instead of a yes/no question) is what matters.
 * **Pairwise heapsort** is as effective as the best listwise variant but needs about 512 requests per query.
+* **TypeSafe's own re-ranking recipe** ([cookbook](https://docs.typesafe.ai/cookbooks/rerank_typesafe)) is the same
+  pointwise `noul` design, with the question phrased in context ("Could the candidate passage be the one a search
+  engine should return - does it provide the specific information the query asks for?") and criteria that contrast
+  a specific answer with a merely similar topic. Adapted to web search (`pointwise --method cookbook`) it scores
+  0.712 / 0.682 on DL19 / DL20: better than the plain statement "The passage answers the query." (0.693 / 0.674),
+  still below the graded `score` question (0.728 / 0.691). Wording matters about as much as ±0.02 nDCG.
 * **Against the baselines**, Jev listwise `score` (0.737 / 0.709) matches RankZephyr-7B (0.742 / 0.709) and is just
   below RankGPT gpt-4 on DL19 (0.756) and above it on DL20 (0.706), at 9 requests of 0.6–0.8 s and $0.0017 per query,
   with no GPU and no generated tokens.

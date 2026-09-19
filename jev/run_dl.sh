@@ -28,6 +28,7 @@ $PY jev/run_jev.py $common --save_path $OUT/$DS.listwise.choice.w100.txt    list
 $PY jev/run_jev.py $common --save_path $OUT/$DS.listwise.score.w100.txt     listwise --window_size 100 --step_size 100 --mode score
 $PY jev/run_jev.py $common --save_path $OUT/$DS.pointwise.noul.txt          pointwise --method noul
 $PY jev/run_jev.py $common --save_path $OUT/$DS.pointwise.score.txt         pointwise --method score
+$PY jev/run_jev.py $common --save_path $OUT/$DS.pointwise.cookbook.txt      pointwise --method cookbook   # TypeSafe's rerank cookbook wording
 $PY jev/run_jev.py $common --save_path $OUT/$DS.pairwise.heapsort.txt       pairwise --k 10
 
 $PY jev/eval_run.py --dataset $DATASET "$BM25" "$OUT"/$DS.*.txt
