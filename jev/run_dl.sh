@@ -29,6 +29,9 @@ $PY jev/run_jev.py $common --save_path $OUT/$DS.listwise.score.w100.txt     list
 $PY jev/run_jev.py $common --save_path $OUT/$DS.pointwise.noul.txt          pointwise --method noul
 $PY jev/run_jev.py $common --save_path $OUT/$DS.pointwise.score.txt         pointwise --method score
 $PY jev/run_jev.py $common --save_path $OUT/$DS.pointwise.cookbook.txt      pointwise --method cookbook   # TypeSafe's rerank cookbook wording
+$PY jev/run_jev.py $common --save_path $OUT/$DS.pointwise.cookbook_score.txt pointwise --method cookbook_score
+$PY jev/run_jev.py $common --save_path $OUT/$DS.pointwise.trec.txt           pointwise --method trec       # TREC-DL assessor scale verbatim
+$PY jev/run_jev.py $common --save_path $OUT/$DS.pointwise.umbrela.txt        pointwise --method umbrela    # Bing / UMBRELA assessor prompt
 $PY jev/run_jev.py $common --save_path $OUT/$DS.pairwise.heapsort.txt       pairwise --k 10
 
 $PY jev/eval_run.py --dataset $DATASET "$BM25" "$OUT"/$DS.*.txt

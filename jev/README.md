@@ -53,12 +53,21 @@ cost is the list price of the input tokens per query.
 * **Pointwise `score` (100 requests) is close to listwise `score` (9 requests)**: seeing the other candidates in the
   same request adds little; the graded rubric (instead of a yes/no question) is what matters.
 * **Pairwise heapsort** is as effective as the best listwise variant but needs about 512 requests per query.
-* **TypeSafe's own re-ranking recipe** ([cookbook](https://docs.typesafe.ai/cookbooks/rerank_typesafe)) is the same
-  pointwise `noul` design, with the question phrased in context ("Could the candidate passage be the one a search
-  engine should return - does it provide the specific information the query asks for?") and criteria that contrast
-  a specific answer with a merely similar topic. Adapted to web search (`pointwise --method cookbook`) it scores
-  0.712 / 0.682 on DL19 / DL20: better than the plain statement "The passage answers the query." (0.693 / 0.674),
-  still below the graded `score` question (0.728 / 0.691). Wording matters about as much as ±0.02 nDCG.
+* **The question type matters more than its wording, but wording adds a little.** Six pointwise prompts, each
+  100 requests per query (nDCG@10, DL19 / DL20):
+
+  | pointwise prompt (`--method`) | DL19 | DL20 |
+  |---|---|---|
+  | `noul`: "The passage answers the query." | 0.693 | 0.674 |
+  | `cookbook`: `noul` worded like TypeSafe's [re-ranking cookbook](https://docs.typesafe.ai/cookbooks/rerank_typesafe) (question in context, criteria "specific answer" vs "similar topic") | 0.712 | 0.682 |
+  | `score`: the four TREC-DL relevance levels as the rubric | 0.728 | 0.691 |
+  | `trec`: the TREC-DL assessor scale verbatim, assessor framing, plus NIST's note that "Related" is *not* relevant | 0.724 | 0.689 |
+  | `umbrela`: the Bing / [UMBRELA](https://github.com/castorini/umbrela) LLM-assessor prompt (TREC-DL definitions, "Important Instruction", intent / match / trust steps) | 0.724 | 0.689 |
+  | `cookbook_score`: cookbook wording with the four levels | **0.731** | **0.699** |
+
+  Going from a yes/no question to a graded rubric is worth about +0.03; the official assessor wording and the
+  Bing prompt land within noise of the plain rubric; the cookbook's "specific vs. merely similar" phrasing adds
+  another +0.005–0.01 on top of the rubric.
 * **Against the baselines**, Jev listwise `score` (0.737 / 0.709) matches RankZephyr-7B (0.742 / 0.709) and is just
   below RankGPT gpt-4 on DL19 (0.756) and above it on DL20 (0.706), at 9 requests of 0.6–0.8 s and $0.0017 per query,
   with no GPU and no generated tokens.
@@ -96,6 +105,31 @@ Pointwise `score`, expected level (sum of level x probability over the 4 TREC-DL
 | 2.0 – 2.5 | 615 | 0.52 | 1.47 |
 | 2.5 – 3.0 | 993 | 0.76 | 2.04 |
 | 3.0 – 3.5 | 71 | 0.89 | 2.59 |
+
+Rounding the expected level to the nearest grade and comparing it with the NIST grade shows where the graded
+prompts disagree with the assessors (`python jev/calibration.py`):
+
+| graded prompt | exact agreement | within one level | mean (expected level − grade) |
+|---|---|---|---|
+| `score` | 34.8% | 87.6% | +0.65 |
+| `trec` | 32.6% | 88.0% | +0.66 |
+| `umbrela` | 34.3% | 88.8% | +0.61 |
+| `cookbook_score` | 36.9% | 91.3% | +0.51 |
+
+Confusion matrix of `cookbook_score` (rows: Jev's rounded level, columns: NIST grade):
+
+| Jev \ NIST | 0 | 1 | 2 | 3 |
+|---|---|---|---|---|
+| 0 | 419 | 11 | 2 | 1 |
+| 1 | 1804 | 788 | 239 | 65 |
+| 2 | 182 | 259 | 319 | 157 |
+| 3 | 62 | 132 | 316 | 360 |
+
+The one big disagreement is the same for every prompt: about 1,700–1,800 of the 2,467 passages the assessors
+marked *Irrelevant* get *Related* from Jev. Jev calls a passage "related" whenever it is on the topic, while NIST
+assessors reserved that grade for far fewer passages; telling the model explicitly that "Related is not
+relevant" (`trec`) did not change this. Above grade 1 the agreement is reasonable, and since nDCG gives *Related*
+little gain the confusion costs little ranking quality.
 
 ### Jev is not deterministic
 
@@ -206,7 +240,7 @@ One method at a time (same two-level CLI as `../run.py`):
       --save_path jev/runs/jev/dl19.setwise.heapsort.c10.txt \
       --hits 100 --query_length 32 --passage_length 128 --num_workers 4 --query_workers 12 --max_rps 20 \
   setwise --num_child 10 --k 10
-#   pointwise --method noul|score
+#   pointwise --method noul|score|cookbook|cookbook_score|trec|umbrela
 #   pairwise  --k 10
 #   listwise  --window_size 20 --step_size 10 --mode choice|score
 #   listwise  --window_size 100 --step_size 100 --mode score      (all 100 candidates in one request)

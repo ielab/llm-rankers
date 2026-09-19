@@ -360,11 +360,58 @@ class JevPointwiseLlmRanker(JevRanker):
 
     def __init__(self, client, method='noul', num_workers=4):
         super().__init__(client, num_workers)
-        if method not in ('noul', 'score', 'cookbook'):
-            raise ValueError("method must be 'noul', 'score' or 'cookbook'")
+        if method not in ('noul', 'score', 'cookbook', 'cookbook_score', 'trec', 'umbrela'):
+            raise ValueError("method must be one of noul, score, cookbook, cookbook_score, trec, umbrela")
         self.method = method
 
     def _score_one(self, query, doc):
+        if self.method == 'trec':  # the TREC DL assessor scale, verbatim, with the NIST note on 'Related'
+            state = {'query': query, 'passage': doc.text}
+            qs = {'relevance': score(
+                'You are a NIST assessor for the TREC Deep Learning track passage ranking task. Judge the relevance '
+                'of the passage to the query on the track\'s four-point scale. Note that "Related" is NOT relevant: '
+                'it means that the passage is on the same general topic but does not answer the question.',
+                ['Irrelevant: The passage has nothing to do with the query.',
+                 'Related: The passage seems related to the query but does not answer it.',
+                 'Highly relevant: The passage has some answer for the query, but the answer may be a bit unclear, '
+                 'or hidden amongst extraneous information.',
+                 'Perfectly relevant: The passage is dedicated to the query and contains the exact answer.'])}
+            return self.client.system_one(state, qs)['answers']['relevance']['score']
+        if self.method == 'umbrela':  # the Bing / UMBRELA LLM-assessor prompt (Thomas et al. 2023; Upadhyay et al. 2024)
+            state = {'query': query, 'passage': doc.text}
+            qs = {'relevance': score(
+                'Given a query and a passage, you must provide a score on an integer scale of 0 to 3 with the '
+                'following meanings: 0 = represent that the passage has nothing to do with the query, 1 = represents '
+                'that the passage seems related to the query but does not answer it, 2 = represents that the passage '
+                'has some answer for the query, but the answer may be a bit unclear, or hidden amongst extraneous '
+                'information and 3 = represents that the passage is dedicated to the query and contains the exact '
+                'answer. Important Instruction: Assign category 1 if the passage is somewhat related to the topic but '
+                'not completely, category 2 if passage presents something very important related to the entire topic '
+                'but also has some extra information and category 3 if the passage only and entirely refers to the '
+                'topic. If none of the above satisfies give it category 0. Split this problem into steps: Consider the '
+                'underlying intent of the search. Measure how well the content matches a likely intent of the query '
+                '(M). Measure how trustworthy the passage is (T). Consider the aspects above and the relative '
+                'importance of each, and decide on a final score (O).',
+                ['0: the passage has nothing to do with the query',
+                 '1: the passage seems related to the query but does not answer it',
+                 '2: the passage has some answer for the query, but the answer may be a bit unclear, or hidden '
+                 'amongst extraneous information',
+                 '3: the passage is dedicated to the query and contains the exact answer'])}
+            return self.client.system_one(state, qs)['answers']['relevance']['score']
+        if self.method == 'cookbook_score':  # cookbook wording + the 4 graded levels
+            state = {'query': query, 'candidate_passage': doc.text}
+            qs = {'relevance': score(
+                'The query is a web search query typed by a user looking for a specific piece of information. '
+                'Could the candidate passage be the passage a search engine should return for it? Rate how well it '
+                'provides the specific information the query asks for.',
+                ['Irrelevant: the candidate passage has nothing to do with what the query asks for.',
+                 'Related: the candidate passage is on a similar topic but does not supply the specific information '
+                 'the query asks for.',
+                 'Highly relevant: the candidate passage contains the specific information the query asks for, but '
+                 'it is unclear or buried among other content.',
+                 'Perfectly relevant: the candidate passage is dedicated to the query and states the specific '
+                 'information it asks for.'])}
+            return self.client.system_one(state, qs)['answers']['relevance']['score']
         if self.method == 'cookbook':
             state = {'query': query, 'candidate_passage': doc.text}
             qs = {'relevant': noul(
