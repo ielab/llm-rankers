@@ -88,10 +88,18 @@ def main(args):
                                    args.run.passage_length, args.run.max_queries)
     print(f'{len(first_stage)} queries, top-{args.run.hits} candidates each')
 
-    bar = tqdm(total=len(first_stage), desc='re-ranking', unit='query', dynamic_ncols=True)
-    client.on_call = lambda elapsed: bar.set_postfix_str(
-        f'calls={client.total_calls} last={elapsed:.2f}s mean={sum(client.latencies) / client.total_calls:.2f}s '
-        f'retries={client.total_retries} ~${client.estimated_cost_usd():.3f}')
+    bar = tqdm(total=len(first_stage), desc='re-ranking', unit='query')
+    last_refresh = [0.0]
+
+    def on_call(elapsed):  # show progress inside long queries, but redraw at most twice a second (redraws are slow)
+        bar.set_postfix_str(f'calls={client.total_calls} last={elapsed:.2f}s '
+                            f'mean={sum(client.latencies) / client.total_calls:.2f}s '
+                            f'retries={client.total_retries} ~${client.estimated_cost_usd():.3f}', refresh=False)
+        if time.time() - last_refresh[0] > 0.5:
+            last_refresh[0] = time.time()
+            bar.refresh()
+
+    client.on_call = on_call
 
     rankers = queue.Queue()  # one ranker per worker: rankers keep per-query state, the client is shared
     rankers.put(ranker)
