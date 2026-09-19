@@ -4,6 +4,7 @@ Pointwise, Listwise, Pairwise and [Setwise](https://arxiv.org/pdf/2310.09497.pdf
 
 ---
 ## News
+- **2026-09-19**: New experiments with [Jev](https://typesafe.ai/) (TypeSafe AI's non-generative "System One" model) as a pointwise / pairwise / setwise / listwise reranker, including all 100 candidates in a single request. Check out the [jev](jev) folder for results and analysis.
 - **2025-03-08**: We introduce *Rank-R1* a new setwise reranker with reasoning ability! Check out the [Rank-R1](Rank-R1) folder and [paper](https://arxiv.org/abs/2503.06034) for more details.
 
 ---
